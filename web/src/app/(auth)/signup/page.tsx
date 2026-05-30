@@ -30,7 +30,7 @@ export default async function SignupPage({
       <form action={signup}>
         <CardContent className="space-y-4">
           {error ? (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p className="rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-400">
               {error}
             </p>
           ) : null}
@@ -66,18 +66,18 @@ export default async function SignupPage({
               required
               minLength={6}
             />
-            <p className="text-xs text-slate-500">At least 6 characters.</p>
+            <p className="text-xs text-zinc-500">At least 6 characters.</p>
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-3">
           <Button type="submit" className="w-full">
             Create account
           </Button>
-          <p className="text-center text-sm text-slate-500">
+          <p className="text-center text-sm text-zinc-400">
             Already have an account?{" "}
             <Link
               href="/login"
-              className="font-medium text-slate-900 hover:underline"
+              className="font-medium text-pink-400 hover:underline"
             >
               Sign in
             </Link>

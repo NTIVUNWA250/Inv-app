@@ -30,12 +30,12 @@ export default async function LoginPage({
       <form action={login}>
         <CardContent className="space-y-4">
           {message ? (
-            <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400">
               {message}
             </p>
           ) : null}
           {error ? (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p className="rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-400">
               {error}
             </p>
           ) : null}
@@ -66,11 +66,11 @@ export default async function LoginPage({
           <Button type="submit" className="w-full">
             Sign in
           </Button>
-          <p className="text-center text-sm text-slate-500">
+          <p className="text-center text-sm text-zinc-400">
             Don&apos;t have an account?{" "}
             <Link
               href="/signup"
-              className="font-medium text-slate-900 hover:underline"
+              className="font-medium text-pink-400 hover:underline"
             >
               Create one
             </Link>
