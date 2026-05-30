@@ -4,6 +4,7 @@ import { env } from "./env.js";
 import { errorHandler } from "./http.js";
 import { authRouter } from "./routes/auth.js";
 import { profilesRouter } from "./routes/profiles.js";
+import { usersRouter } from "./routes/users.js";
 import { locationsRouter } from "./routes/locations.js";
 import { itemsRouter } from "./routes/items.js";
 import { stockRouter } from "./routes/stock.js";
@@ -27,6 +28,7 @@ export function createApp(): Express {
 
   app.use("/auth", authRouter);
   app.use("/profiles", profilesRouter);
+  app.use("/users", usersRouter);
   app.use("/locations", locationsRouter);
   app.use("/items", itemsRouter);
   app.use("/stock", stockRouter);

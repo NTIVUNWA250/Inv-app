@@ -49,3 +49,24 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
     next(err);
   }
 }
+
+/**
+ * Require the authenticated user to be an admin. Run after requireAuth. Reads
+ * the caller's role through their own RLS-scoped client.
+ */
+export async function requireAdmin(req: Request, _res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { data, error } = await req.supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", req.user.id)
+      .single();
+    if (error) throw error;
+    if (data?.role !== "admin") {
+      throw new HttpError(403, "Admin privileges required.", "not_admin");
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+}

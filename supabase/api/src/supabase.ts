@@ -17,6 +17,17 @@ export const anon: SupabaseClient = createClient(
 );
 
 /**
+ * Service-role client that bypasses RLS. Only configured if
+ * SUPABASE_SERVICE_ROLE_KEY is set. Used exclusively for admin user management
+ * (creating / deleting auth accounts), gated behind requireAdmin.
+ */
+export const service: SupabaseClient | null = env.supabaseServiceRoleKey
+  ? createClient(env.supabaseUrl, env.supabaseServiceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+  : null;
+
+/**
  * Build a Supabase client scoped to a specific user's access token.
  *
  * Every data request goes through one of these, which means the JWT is sent
