@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../config/supabase.dart';
+import '../../config/api_client.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -28,11 +27,12 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     try {
-      await supabase.auth.signInWithPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
+      await ApiClient.instance.login(
+        _emailController.text.trim(),
+        _passwordController.text,
       );
-    } on AuthException catch (e) {
+      // The auth gate (main.dart) swaps to the home screen automatically.
+    } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));

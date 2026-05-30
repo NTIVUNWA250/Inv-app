@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../config/supabase.dart';
+import '../../config/api_client.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -29,18 +28,22 @@ class _SignupScreenState extends State<SignupScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     try {
-      await supabase.auth.signUp(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-        data: {'full_name': _nameController.text.trim()},
+      final loggedIn = await ApiClient.instance.signup(
+        _emailController.text.trim(),
+        _passwordController.text,
+        _nameController.text.trim(),
       );
-      if (mounted) {
+      if (!mounted) return;
+      if (loggedIn) {
+        // Session returned — the auth gate swaps to home; close this screen.
+        Navigator.of(context).pop();
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Check your email to confirm your account')),
         );
         Navigator.of(context).pop();
       }
-    } on AuthException catch (e) {
+    } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));

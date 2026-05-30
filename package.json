@@ -1,4 +1,13 @@
 {
+  "name": "inventory-app",
+  "private": true,
+  "scripts": {
+    "api:install": "npm --prefix supabase/api install",
+    "api:dev": "npm --prefix supabase/api run dev",
+    "api:build": "npm --prefix supabase/api run build",
+    "api:start": "npm --prefix supabase/api start",
+    "api:typecheck": "npm --prefix supabase/api run typecheck"
+  },
   "devDependencies": {
     "supabase": "^2.102.0"
   }

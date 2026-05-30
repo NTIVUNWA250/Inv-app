@@ -1,6 +1,10 @@
 # Supabase
 
-Database schema, auth config, and Row Level Security (RLS) policies for the Inventory app. Used by both `web/` and `mobile/`.
+Database schema, auth config, and Row Level Security (RLS) policies for the Inventory app.
+
+The `web/` and `mobile/` apps don't talk to Supabase directly — they go through the
+shared **[`api/`](api/README.md)** (an Express service) which verifies each user's JWT
+and runs queries as that user, so the RLS policies below stay the source of truth.
 
 ## Prerequisites
 
@@ -52,6 +56,7 @@ supabase/
 ├── seed.sql             Created by `supabase init` — optional seed data
 ├── migrations/
 │   └── 0001_profiles_and_inventory.sql   Initial schema
+├── api/                 Shared Express API consumed by web + mobile (see api/README.md)
 └── README.md
 ```
 

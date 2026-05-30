@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import 'config/supabase.dart';
+import 'config/api_client.dart';
 import 'features/auth/login_screen.dart';
 import 'screens/home_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initSupabase();
+  await dotenv.load(fileName: '.env');
+  await ApiClient.instance.restore();
   runApp(const InventoryApp());
 }
 
@@ -32,12 +33,10 @@ class _AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<AuthState>(
-      stream: supabase.auth.onAuthStateChange,
-      builder: (context, snapshot) {
-        final session = supabase.auth.currentSession;
-        if (session == null) return const LoginScreen();
-        return const HomeScreen();
+    return ValueListenableBuilder<bool>(
+      valueListenable: ApiClient.instance.isAuthenticated,
+      builder: (context, isAuthenticated, _) {
+        return isAuthenticated ? const HomeScreen() : const LoginScreen();
       },
     );
   }
