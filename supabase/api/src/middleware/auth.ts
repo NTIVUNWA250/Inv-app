@@ -44,6 +44,18 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
     req.user = data.user;
     req.accessToken = token;
     req.supabase = userClient(token);
+
+    // Reject blocked users on every request, so an admin blocking someone takes
+    // effect immediately — even for a session that's already signed in.
+    const { data: profile } = await req.supabase
+      .from("profiles")
+      .select("blocked")
+      .eq("id", data.user.id)
+      .maybeSingle();
+    if (profile?.blocked) {
+      throw new HttpError(403, "Your account has been blocked. Contact an administrator.", "account_blocked");
+    }
+
     next();
   } catch (err) {
     next(err);

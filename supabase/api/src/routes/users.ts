@@ -54,6 +54,44 @@ usersRouter.post(
   }),
 );
 
+const blockBody = z.object({ blocked: z.boolean() });
+
+/**
+ * Block or unblock an account (admin only). Reversible. The profiles.blocked
+ * flag is checked in requireAuth, so a blocked user is denied on their very next
+ * request. If the service-role key is configured we also ban/unban the user in
+ * GoTrue as defense in depth (revokes their refresh token immediately); without
+ * it, the requireAuth check alone still enforces the block through this API.
+ */
+usersRouter.patch(
+  "/:id/block",
+  asyncHandler(async (req, res) => {
+    const { blocked } = blockBody.parse(req.body);
+    if (req.params.id === req.user.id) {
+      throw new HttpError(400, "You can't block your own account.", "cannot_block_self");
+    }
+
+    // Persist the flag. RLS (profiles_update_admin) + the block trigger allow an
+    // admin to do this through their own scoped client.
+    const { data, error } = await req.supabase
+      .from("profiles")
+      .update({ blocked })
+      .eq("id", req.params.id)
+      .select()
+      .single();
+    if (error) throw error;
+
+    // Best effort: also reflect the block in GoTrue when we can.
+    if (service) {
+      await service.auth.admin.updateUserById(req.params.id, {
+        ban_duration: blocked ? "876000h" : "none", // ~100 years / lift ban
+      });
+    }
+
+    res.json(data);
+  }),
+);
+
 /** Delete an account (admin only). Cascades to the profile row. */
 usersRouter.delete(
   "/:id",

@@ -18,6 +18,7 @@ export interface Profile {
   id: string;
   full_name: string | null;
   role: "member" | "admin";
+  blocked: boolean;
   created_at: string;
 }
 

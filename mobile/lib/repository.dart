@@ -104,6 +104,10 @@ class UsersRepository {
   Future<void> changeRole(String id, String role) =>
       api.patch('/profiles/$id/role', {'role': role});
 
+  /// Block or unblock a user (admin-only, enforced server-side).
+  Future<void> setBlocked(String id, bool blocked) =>
+      api.patch('/users/$id/block', {'blocked': blocked});
+
   Future<void> createUser({
     required String email,
     required String password,

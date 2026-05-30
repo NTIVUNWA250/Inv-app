@@ -109,18 +109,21 @@ class Profile {
     required this.id,
     required this.role,
     this.fullName,
+    this.blocked = false,
     this.createdAt,
   });
 
   final String id;
   final String role; // 'member' | 'admin'
   final String? fullName;
+  final bool blocked;
   final DateTime? createdAt;
 
   factory Profile.fromJson(Map<String, dynamic> json) => Profile(
         id: json['id'] as String,
         role: (json['role'] as String?) ?? 'member',
         fullName: json['full_name'] as String?,
+        blocked: (json['blocked'] as bool?) ?? false,
         createdAt: json['created_at'] != null
             ? DateTime.tryParse(json['created_at'] as String)
             : null,

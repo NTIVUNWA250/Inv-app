@@ -3,6 +3,7 @@ import { LogOut } from "lucide-react";
 import { serverApi, ApiError } from "@/lib/api/server";
 import { Panel } from "@/components/dashboard/widgets";
 import { ThemeToggle } from "@/components/dashboard/theme-toggle";
+import { EditProfileForm } from "@/components/dashboard/edit-profile-form";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/app/(auth)/actions";
 import type { ApiUser, Profile } from "@/lib/api/types";
@@ -29,30 +30,19 @@ export default async function SettingsPage() {
       </div>
 
       <Panel title="Profile">
-        <dl className="divide-y divide-line">
-          <div className="flex items-center justify-between px-5 py-3">
-            <dt className="text-sm text-muted">Name</dt>
-            <dd className="text-sm text-fg">{profile?.full_name || "—"}</dd>
-          </div>
-          <div className="flex items-center justify-between px-5 py-3">
-            <dt className="text-sm text-muted">Email</dt>
-            <dd className="text-sm text-fg">{user.email ?? "—"}</dd>
-          </div>
-          <div className="flex items-center justify-between px-5 py-3">
-            <dt className="text-sm text-muted">Role</dt>
-            <dd>
-              <span
-                className={
-                  profile?.role === "admin"
-                    ? "rounded-full bg-pink-500/15 px-2.5 py-0.5 text-xs font-medium text-pink-400"
-                    : "rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-medium text-muted"
-                }
-              >
-                {profile?.role ?? "member"}
-              </span>
-            </dd>
-          </div>
-        </dl>
+        <EditProfileForm fullName={profile?.full_name ?? ""} email={user.email ?? ""} />
+        <div className="flex items-center justify-between border-t border-line px-5 py-3">
+          <span className="text-sm text-muted">Role</span>
+          <span
+            className={
+              profile?.role === "admin"
+                ? "rounded-full bg-pink-500/15 px-2.5 py-0.5 text-xs font-medium text-pink-400"
+                : "rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-medium text-muted"
+            }
+          >
+            {profile?.role ?? "member"}
+          </span>
+        </div>
       </Panel>
 
       <Panel title="Appearance">

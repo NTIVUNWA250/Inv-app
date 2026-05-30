@@ -123,6 +123,19 @@ class ApiClient {
     }
   }
 
+  /// Update the signed-in user's own display name and/or email. Email changes
+  /// require the API's service-role key (server enforces). Refreshes the cached
+  /// name/email from the response.
+  Future<void> updateProfile({String? fullName, String? email}) async {
+    final body = <String, dynamic>{
+      if (fullName != null) 'full_name': fullName,
+      if (email != null) 'email': email,
+    };
+    final res = await patch('/profiles/me', body) as Map<String, dynamic>;
+    _currentFullName = res['full_name'] as String? ?? _currentFullName;
+    _currentEmail = res['email'] as String? ?? _currentEmail;
+  }
+
   // --- Generic requests ---------------------------------------------------
 
   Future<dynamic> get(String path) => _request('GET', path);

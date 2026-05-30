@@ -144,3 +144,42 @@ export async function deleteUser(id: string): Promise<void> {
   await api.del(`/users/${id}`);
   revalidatePath("/users");
 }
+
+/** Block or unblock a user (admin-only). Throws on failure. */
+export async function setBlocked(id: string, blocked: boolean): Promise<void> {
+  const api = serverApi();
+  await api.patch(`/users/${id}/block`, { blocked });
+  revalidatePath("/users");
+}
+
+export interface UpdateProfileState {
+  ok?: boolean;
+  error?: string;
+}
+
+/**
+ * Update the signed-in user's own display name and/or email. Email changes go
+ * through the API's admin path (service-role key required); the name does not.
+ */
+export async function updateProfile(
+  _prev: UpdateProfileState,
+  formData: FormData,
+): Promise<UpdateProfileState> {
+  const api = serverApi();
+  const full_name = String(formData.get("full_name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+
+  if (!full_name) return { error: "Name can't be empty." };
+  if (!email) return { error: "Email can't be empty." };
+
+  try {
+    await api.patch("/profiles/me", { full_name, email });
+  } catch (err) {
+    return { error: err instanceof ApiError ? err.message : "Could not update profile." };
+  }
+
+  revalidatePath("/settings");
+  revalidatePath("/users");
+  revalidatePath("/", "layout");
+  return { ok: true };
+}

@@ -5,6 +5,7 @@ import { Panel } from "@/components/dashboard/widgets";
 import { RoleSelect } from "@/components/dashboard/role-select";
 import { AddUserForm } from "@/components/dashboard/add-user-form";
 import { DeleteUserButton } from "@/components/dashboard/delete-user-button";
+import { BlockUserButton } from "@/components/dashboard/block-user-button";
 import type { ApiUser, Profile } from "@/lib/api/types";
 
 export default async function UsersPage() {
@@ -75,7 +76,16 @@ export default async function UsersPage() {
               <tbody className="divide-y divide-line">
                 {profiles.map((p) => (
                   <tr key={p.id} className="hover:bg-surface-2/40">
-                    <td className="px-5 py-3 font-medium text-fg">{p.full_name || "—"}</td>
+                    <td className="px-5 py-3 font-medium text-fg">
+                      <span className="inline-flex items-center gap-2">
+                        {p.full_name || "—"}
+                        {p.blocked ? (
+                          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-400">
+                            Blocked
+                          </span>
+                        ) : null}
+                      </span>
+                    </td>
                     <td className="px-5 py-3">
                       <RoleSelect id={p.id} role={p.role} isSelf={p.id === currentUserId} />
                     </td>
@@ -86,7 +96,12 @@ export default async function UsersPage() {
                       {p.id === currentUserId ? (
                         <span className="text-xs text-muted">—</span>
                       ) : (
-                        <div className="flex justify-end">
+                        <div className="flex justify-end gap-1">
+                          <BlockUserButton
+                            id={p.id}
+                            name={p.full_name || "this user"}
+                            blocked={p.blocked}
+                          />
                           <DeleteUserButton id={p.id} name={p.full_name || "this user"} />
                         </div>
                       )}
