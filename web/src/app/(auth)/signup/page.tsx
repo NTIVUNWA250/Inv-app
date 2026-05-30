@@ -66,14 +66,14 @@ export default async function SignupPage({
               required
               minLength={6}
             />
-            <p className="text-xs text-zinc-500">At least 6 characters.</p>
+            <p className="text-xs text-muted">At least 6 characters.</p>
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-3">
           <Button type="submit" className="w-full">
             Create account
           </Button>
-          <p className="text-center text-sm text-zinc-400">
+          <p className="text-center text-sm text-muted">
             Already have an account?{" "}
             <Link
               href="/login"

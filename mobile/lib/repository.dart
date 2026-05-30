@@ -1,0 +1,121 @@
+import 'config/api_client.dart';
+import 'models.dart';
+
+/// All inventory data access, going through [ApiClient] (so every call carries
+/// the user's token and respects the backend's RLS rules).
+class InventoryRepository {
+  const InventoryRepository();
+
+  Future<List<Item>> fetchItems({String? search}) async {
+    final path = (search == null || search.isEmpty)
+        ? '/items'
+        : '/items?search=${Uri.encodeQueryComponent(search)}';
+    final data = await api.get(path) as List<dynamic>;
+    return data.map((e) => Item.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<Item> fetchItem(String id) async {
+    final data = await api.get('/items/$id') as Map<String, dynamic>;
+    return Item.fromJson(data);
+  }
+
+  Future<List<StockLevel>> fetchStock() async {
+    final data = await api.get('/stock') as List<dynamic>;
+    return data.map((e) => StockLevel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<List<StockLevel>> fetchItemStock(String itemId) async {
+    final data = await api.get('/items/$itemId/stock') as List<dynamic>;
+    return data.map((e) => StockLevel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<List<StockLevel>> fetchStockAtLocation(String locationId) async {
+    final data = await api.get('/stock?location_id=$locationId') as List<dynamic>;
+    return data.map((e) => StockLevel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<List<Location>> fetchLocations() async {
+    final data = await api.get('/locations') as List<dynamic>;
+    return data.map((e) => Location.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<Location> fetchLocation(String id) async {
+    final data = await api.get('/locations/$id') as Map<String, dynamic>;
+    return Location.fromJson(data);
+  }
+
+  Future<List<Movement>> fetchMovements(String itemId) async {
+    final data = await api.get('/movements?item_id=$itemId') as List<dynamic>;
+    return data.map((e) => Movement.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// Check stock out (take) or in (return). The user is recorded as the actor.
+  Future<void> recordMovement({
+    required String itemId,
+    required String locationId,
+    required int quantity,
+    required bool checkout,
+  }) async {
+    await api.post(checkout ? '/movements/check-out' : '/movements/check-in', {
+      'item_id': itemId,
+      'location_id': locationId,
+      'quantity': quantity,
+    });
+  }
+
+  /// Create a catalog item and seed its initial stock at a location.
+  Future<void> createItem({
+    required String name,
+    String? sku,
+    String? description,
+    required String locationId,
+    required int quantity,
+  }) async {
+    final item = await api.post('/items', {
+      'name': name,
+      'sku': (sku != null && sku.isNotEmpty) ? sku : null,
+      'description': (description != null && description.isNotEmpty) ? description : null,
+    }) as Map<String, dynamic>;
+
+    await api.post('/movements', {
+      'item_id': item['id'],
+      'location_id': locationId,
+      'delta': quantity,
+      'note': 'Initial stock',
+    });
+  }
+
+  Future<void> deleteItem(String id) => api.delete('/items/$id');
+
+  Future<void> createLocation(String name) => api.post('/locations', {'name': name});
+
+  Future<void> deleteLocation(String id) => api.delete('/locations/$id');
+}
+
+/// Profile + account management (admin-only operations are gated server-side).
+class UsersRepository {
+  const UsersRepository();
+
+  Future<List<Profile>> fetchProfiles() async {
+    final data = await api.get('/profiles') as List<dynamic>;
+    return data.map((e) => Profile.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<void> changeRole(String id, String role) =>
+      api.patch('/profiles/$id/role', {'role': role});
+
+  Future<void> createUser({
+    required String email,
+    required String password,
+    String? fullName,
+    required String role,
+  }) =>
+      api.post('/users', {
+        'email': email,
+        'password': password,
+        if (fullName != null && fullName.isNotEmpty) 'full_name': fullName,
+        'role': role,
+      });
+
+  Future<void> deleteUser(String id) => api.delete('/users/$id');
+}

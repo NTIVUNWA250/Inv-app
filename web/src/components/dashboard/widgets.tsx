@@ -14,13 +14,13 @@ export function StatCard({
   hint?: string;
 }) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+    <div className="rounded-xl border border-line bg-surface p-5">
       <div className="flex items-center justify-between">
-        <span className="text-sm text-zinc-400">{label}</span>
-        <Icon className="h-4 w-4 text-zinc-500" />
+        <span className="text-sm text-muted">{label}</span>
+        <Icon className="h-4 w-4 text-muted" />
       </div>
-      <p className="mt-2 text-3xl font-semibold tracking-tight text-zinc-50">{value}</p>
-      {hint ? <p className="mt-1 text-xs text-zinc-500">{hint}</p> : null}
+      <p className="mt-2 text-3xl font-semibold tracking-tight text-fg">{value}</p>
+      {hint ? <p className="mt-1 text-xs text-muted">{hint}</p> : null}
     </div>
   );
 }
@@ -53,9 +53,9 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <section className={cn("rounded-xl border border-zinc-800 bg-zinc-900", className)}>
-      <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
-        <h2 className="text-sm font-semibold text-zinc-100">{title}</h2>
+    <section className={cn("rounded-xl border border-line bg-surface", className)}>
+      <div className="flex items-center justify-between border-b border-line px-5 py-4">
+        <h2 className="text-sm font-semibold text-fg">{title}</h2>
         {action}
       </div>
       {children}

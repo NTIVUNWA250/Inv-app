@@ -18,9 +18,10 @@ class ApiException implements Exception {
 
 /// Single client the whole app uses to talk to the shared inventory-api.
 ///
-/// Holds the session (access + refresh tokens) in secure storage, attaches the
-/// Bearer token to every request, and transparently refreshes once on a 401.
-/// [isAuthenticated] drives the auth gate in main.dart.
+/// Holds the session in secure storage, attaches the Bearer token to every
+/// request, and transparently refreshes once on a 401. [isAuthenticated] drives
+/// the auth gate; the current user's profile (role/name) is loaded from
+/// /auth/me after login and on restore.
 class ApiClient {
   ApiClient._();
   static final ApiClient instance = ApiClient._();
@@ -32,12 +33,20 @@ class ApiClient {
 
   String? _accessToken;
   String? _refreshToken;
+
   String? _currentEmail;
+  String? _currentUserId;
+  String? _currentFullName;
+  String _role = 'member';
 
   /// Whether a session is currently active. The auth gate listens to this.
   final ValueNotifier<bool> isAuthenticated = ValueNotifier<bool>(false);
 
   String? get currentEmail => _currentEmail;
+  String? get currentUserId => _currentUserId;
+  String? get currentFullName => _currentFullName;
+  String get role => _role;
+  bool get isAdmin => _role == 'admin';
 
   String get _baseUrl => dotenv.env['API_URL'] ?? 'http://10.0.2.2:4000';
 
@@ -48,19 +57,15 @@ class ApiClient {
         if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
       };
 
-  /// Restore a persisted session at startup and confirm it's still valid.
+  /// Restore a persisted session at startup and load the profile.
   Future<void> restore() async {
     _accessToken = await _storage.read(key: _accessKey);
     _refreshToken = await _storage.read(key: _refreshKey);
-    isAuthenticated.value = _accessToken != null;
-
     if (_accessToken != null) {
-      try {
-        final me = await get('/auth/me') as Map<String, dynamic>;
-        _currentEmail = (me['user'] as Map?)?['email'] as String?;
-      } catch (_) {
-        // A failed /auth/me (after a failed refresh) will have cleared the session.
-      }
+      await _loadMe();
+      isAuthenticated.value = true;
+    } else {
+      isAuthenticated.value = false;
     }
   }
 
@@ -71,12 +76,12 @@ class ApiClient {
       'email': email,
       'password': password,
     });
-    _currentEmail = (body['user'] as Map?)?['email'] as String?;
     await _persist(body['session'] as Map<String, dynamic>);
+    await _loadMe(); // load role before the shell reads it
+    isAuthenticated.value = true;
   }
 
-  /// Returns true if signup logged the user straight in (email confirmation
-  /// disabled), false if they still need to confirm their email.
+  /// Returns true if signup logged the user straight in.
   Future<bool> signup(String email, String password, String fullName) async {
     final body = await _unauthed('/auth/signup', {
       'email': email,
@@ -85,8 +90,9 @@ class ApiClient {
     });
     final session = body['session'];
     if (session is Map<String, dynamic>) {
-      _currentEmail = (body['user'] as Map?)?['email'] as String?;
       await _persist(session);
+      await _loadMe();
+      isAuthenticated.value = true;
       return true;
     }
     return false;
@@ -98,17 +104,33 @@ class ApiClient {
         await http.post(_uri('/auth/logout'), headers: _headers());
       }
     } catch (_) {
-      // Best effort — clear locally regardless.
+      // Best effort.
     }
     await _clear();
+  }
+
+  Future<void> _loadMe() async {
+    try {
+      final me = await get('/auth/me') as Map<String, dynamic>;
+      final user = me['user'] as Map<String, dynamic>?;
+      final profile = me['profile'] as Map<String, dynamic>?;
+      _currentEmail = user?['email'] as String?;
+      _currentUserId = user?['id'] as String?;
+      _currentFullName = profile?['full_name'] as String?;
+      _role = (profile?['role'] as String?) ?? 'member';
+    } catch (_) {
+      // Leave defaults; a failed refresh path clears the session.
+    }
   }
 
   // --- Generic requests ---------------------------------------------------
 
   Future<dynamic> get(String path) => _request('GET', path);
-
   Future<dynamic> post(String path, [Map<String, dynamic>? body]) =>
       _request('POST', path, body);
+  Future<dynamic> patch(String path, [Map<String, dynamic>? body]) =>
+      _request('PATCH', path, body);
+  Future<dynamic> delete(String path) => _request('DELETE', path);
 
   Future<dynamic> _request(
     String method,
@@ -134,9 +156,14 @@ class ApiClient {
   Future<http.Response> _send(String method, String path, Map<String, dynamic>? body) {
     final uri = _uri(path);
     final headers = _headers(json: body != null);
+    final encoded = body != null ? jsonEncode(body) : null;
     switch (method) {
       case 'POST':
-        return http.post(uri, headers: headers, body: body != null ? jsonEncode(body) : null);
+        return http.post(uri, headers: headers, body: encoded);
+      case 'PATCH':
+        return http.patch(uri, headers: headers, body: encoded);
+      case 'DELETE':
+        return http.delete(uri, headers: headers);
       case 'GET':
       default:
         return http.get(uri, headers: headers);
@@ -182,13 +209,16 @@ class ApiClient {
     _refreshToken = session['refresh_token'] as String?;
     if (_accessToken != null) await _storage.write(key: _accessKey, value: _accessToken);
     if (_refreshToken != null) await _storage.write(key: _refreshKey, value: _refreshToken);
-    isAuthenticated.value = _accessToken != null;
+    // isAuthenticated is flipped by callers after the profile is loaded.
   }
 
   Future<void> _clear() async {
     _accessToken = null;
     _refreshToken = null;
     _currentEmail = null;
+    _currentUserId = null;
+    _currentFullName = null;
+    _role = 'member';
     await _storage.delete(key: _accessKey);
     await _storage.delete(key: _refreshKey);
     isAuthenticated.value = false;
@@ -214,5 +244,5 @@ class ApiClient {
   }
 }
 
-/// Convenience accessor mirroring the old `supabase` global.
+/// Convenience accessor.
 ApiClient get api => ApiClient.instance;

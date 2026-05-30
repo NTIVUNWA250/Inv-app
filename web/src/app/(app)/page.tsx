@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Boxes, Package, Warehouse, AlertTriangle } from "lucide-react";
 import { serverApi, ApiError } from "@/lib/api/server";
 import { StatCard, StatusBadge, Panel } from "@/components/dashboard/widgets";
@@ -10,8 +11,13 @@ import {
 } from "@/lib/inventory";
 import type { Item, Location, StockLevel } from "@/lib/api/types";
 
-export default async function OverviewPage() {
+export default async function OverviewPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   const api = serverApi();
+  const query = (await searchParams).q?.trim() ?? "";
 
   let items: Item[] = [];
   let stock: StockLevel[] = [];
@@ -43,6 +49,16 @@ export default async function OverviewPage() {
   const totalUnits = stock.reduce((sum, r) => sum + r.quantity, 0);
   const lowStock = rows.filter((r) => statusFor(r.qty) !== "ok").slice(0, 6);
 
+  // The search box filters just the inventory table; stats stay global.
+  const q = query.toLowerCase();
+  const tableRows = q
+    ? rows.filter(
+        ({ item }) =>
+          item.name.toLowerCase().includes(q) ||
+          (item.sku ?? "").toLowerCase().includes(q),
+      )
+    : rows;
+
   const locationRows = locations
     .map((loc) => ({ loc, qty: byLocation.get(loc.id) ?? 0 }))
     .sort((a, b) => b.qty - a.qty);
@@ -50,10 +66,10 @@ export default async function OverviewPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-50">
+        <h1 className="text-2xl font-semibold tracking-tight text-fg">
           Inventory Dashboard
         </h1>
-        <p className="mt-1 text-sm text-zinc-400">
+        <p className="mt-1 text-sm text-muted">
           Track and manage your inventory efficiently.
         </p>
       </div>
@@ -83,19 +99,19 @@ export default async function OverviewPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel title="Low stock items">
           {lowStock.length === 0 ? (
-            <p className="px-5 py-8 text-center text-sm text-zinc-500">
+            <p className="px-5 py-8 text-center text-sm text-muted">
               Everything is well stocked.
             </p>
           ) : (
-            <ul className="divide-y divide-zinc-800">
+            <ul className="divide-y divide-line">
               {lowStock.map(({ item, qty }) => (
                 <li key={item.id} className="flex items-center justify-between px-5 py-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-zinc-100">{item.name}</p>
-                    <p className="truncate text-xs text-zinc-500">{item.sku ?? "No SKU"}</p>
+                    <p className="truncate text-sm font-medium text-fg">{item.name}</p>
+                    <p className="truncate text-xs text-muted">{item.sku ?? "No SKU"}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-sm tabular-nums text-zinc-300">{qty}</span>
+                    <span className="text-sm tabular-nums text-muted">{qty}</span>
                     <StatusBadge quantity={qty} />
                   </div>
                 </li>
@@ -106,20 +122,20 @@ export default async function OverviewPage() {
 
         <Panel title="Storage locations">
           {locationRows.length === 0 ? (
-            <p className="px-5 py-8 text-center text-sm text-zinc-500">
+            <p className="px-5 py-8 text-center text-sm text-muted">
               No locations yet.
             </p>
           ) : (
-            <ul className="divide-y divide-zinc-800">
+            <ul className="divide-y divide-line">
               {locationRows.map(({ loc, qty }) => (
                 <li key={loc.id} className="flex items-center justify-between px-5 py-3">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800 text-zinc-400">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-2 text-muted">
                       <Warehouse className="h-4 w-4" />
                     </div>
-                    <span className="text-sm font-medium text-zinc-100">{loc.name}</span>
+                    <span className="text-sm font-medium text-fg">{loc.name}</span>
                   </div>
-                  <span className="text-sm tabular-nums text-zinc-400">{qty} units</span>
+                  <span className="text-sm tabular-nums text-muted">{qty} units</span>
                 </li>
               ))}
             </ul>
@@ -129,17 +145,21 @@ export default async function OverviewPage() {
 
       <Panel
         title="Inventory overview"
-        action={<span className="text-xs text-zinc-500">{items.length} items</span>}
+        action={
+          <span className="text-xs text-muted">
+            {query ? `${tableRows.length} of ${rows.length} · "${query}"` : `${items.length} items`}
+          </span>
+        }
       >
-        {rows.length === 0 ? (
-          <p className="px-5 py-12 text-center text-sm text-zinc-500">
-            No items in the catalog yet.
+        {tableRows.length === 0 ? (
+          <p className="px-5 py-12 text-center text-sm text-muted">
+            {query ? `No items match "${query}".` : "No items in the catalog yet."}
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="text-xs uppercase tracking-wide text-zinc-500">
-                <tr className="border-b border-zinc-800">
+              <thead className="text-xs uppercase tracking-wide text-muted">
+                <tr className="border-b border-line">
                   <th className="px-5 py-3 font-medium">Item</th>
                   <th className="px-5 py-3 font-medium">SKU</th>
                   <th className="px-5 py-3 font-medium">Locations</th>
@@ -147,13 +167,17 @@ export default async function OverviewPage() {
                   <th className="px-5 py-3 text-right font-medium">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800">
-                {rows.map(({ item, qty, locs }) => (
-                  <tr key={item.id} className="hover:bg-zinc-800/40">
-                    <td className="px-5 py-3 font-medium text-zinc-100">{item.name}</td>
-                    <td className="px-5 py-3 text-zinc-400">{item.sku ?? "—"}</td>
-                    <td className="px-5 py-3 text-zinc-400">{locs}</td>
-                    <td className="px-5 py-3 text-right tabular-nums text-zinc-200">{qty}</td>
+              <tbody className="divide-y divide-line">
+                {tableRows.map(({ item, qty, locs }) => (
+                  <tr key={item.id} className="hover:bg-surface-2/40">
+                    <td className="px-5 py-3 font-medium">
+                      <Link href={`/items/${item.id}`} className="text-fg hover:text-pink-400">
+                        {item.name}
+                      </Link>
+                    </td>
+                    <td className="px-5 py-3 text-muted">{item.sku ?? "—"}</td>
+                    <td className="px-5 py-3 text-muted">{locs}</td>
+                    <td className="px-5 py-3 text-right tabular-nums text-fg">{qty}</td>
                     <td className="px-5 py-3 text-right">
                       <StatusBadge quantity={qty} />
                     </td>

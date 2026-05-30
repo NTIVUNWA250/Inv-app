@@ -17,6 +17,9 @@ export const metadata: Metadata = {
   description: "Track stock, check-outs, and who took what.",
 };
 
+// Applies the saved theme before first paint to avoid a light/dark flash.
+const themeScript = `(function(){try{var t=localStorage.getItem('theme')||'dark';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);}catch(e){document.documentElement.classList.add('dark');}})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -26,7 +29,11 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

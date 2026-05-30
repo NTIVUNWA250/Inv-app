@@ -66,7 +66,7 @@ export default async function LoginPage({
           <Button type="submit" className="w-full">
             Sign in
           </Button>
-          <p className="text-center text-sm text-zinc-400">
+          <p className="text-center text-sm text-muted">
             Don&apos;t have an account?{" "}
             <Link
               href="/signup"
