@@ -5,6 +5,7 @@ import { serverApi, ApiError } from "@/lib/api/server";
 import { Panel, StatusBadge } from "@/components/dashboard/widgets";
 import { MovementForm } from "@/components/dashboard/movement-form";
 import { DeleteItemButton } from "@/components/dashboard/delete-item-button";
+import { ItemQrCard } from "@/components/dashboard/item-qr-card";
 import type { ApiUser, Profile, Item, Location, Movement, StockLevel } from "@/lib/api/types";
 
 export default async function ItemDetailPage({
@@ -95,6 +96,10 @@ export default async function ItemDetailPage({
           <MovementForm itemId={item.id} locations={locations} />
         </Panel>
       </div>
+
+      <Panel title="QR code">
+        <ItemQrCard itemId={item.id} sku={item.sku} name={item.name} />
+      </Panel>
 
       <Panel
         title="Activity"

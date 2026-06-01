@@ -92,6 +92,68 @@ usersRouter.patch(
   }),
 );
 
+const updateUserBody = z
+  .object({
+    full_name: z.string().trim().min(1).optional(),
+    email: z.string().email().optional(),
+    password: z.string().min(6).optional(),
+  })
+  .refine(
+    (b) => b.full_name !== undefined || b.email !== undefined || b.password !== undefined,
+    { message: "Provide a name, email, or password to update." },
+  );
+
+/**
+ * Update another user's account (admin only): display name, email, and/or
+ * password — handy when something is wrong on the user's side and they can't fix
+ * it themselves. Email and password live on the auth.users record and go through
+ * the GoTrue admin API (service-role key required); full_name lives on the
+ * profiles row. The email is auto-confirmed and a password change takes effect
+ * immediately, suitable for this internal, admin-managed tool. At least one
+ * field must be provided.
+ */
+usersRouter.patch(
+  "/:id",
+  asyncHandler(async (req, res) => {
+    const svc = requireService();
+    const body = updateUserBody.parse(req.body);
+
+    if (req.params.id === req.user.id) {
+      throw new HttpError(
+        400,
+        "Use Settings to change your own account.",
+        "cannot_edit_self",
+      );
+    }
+
+    if (body.email !== undefined || body.password !== undefined) {
+      const { error } = await svc.auth.admin.updateUserById(req.params.id, {
+        ...(body.email !== undefined ? { email: body.email, email_confirm: true } : {}),
+        ...(body.password !== undefined ? { password: body.password } : {}),
+      });
+      if (error) throw new HttpError(400, error.message, "update_user_failed");
+    }
+
+    // full_name lives on the profile row. The service client bypasses RLS; this
+    // route is already gated by requireAdmin so an admin can edit any user.
+    if (body.full_name !== undefined) {
+      const { error } = await svc
+        .from("profiles")
+        .update({ full_name: body.full_name })
+        .eq("id", req.params.id);
+      if (error) throw error;
+    }
+
+    const { data, error } = await svc
+      .from("profiles")
+      .select("*")
+      .eq("id", req.params.id)
+      .single();
+    if (error) throw error;
+    res.json({ ...data, ...(body.email !== undefined ? { email: body.email } : {}) });
+  }),
+);
+
 /** Delete an account (admin only). Cascades to the profile row. */
 usersRouter.delete(
   "/:id",

@@ -126,5 +126,24 @@ class UsersRepository {
         'role': role,
       });
 
+  /// Edit another user's account as an admin: display name, email, and/or
+  /// password (for fixing things when the user can't themselves). Only the
+  /// provided fields are sent. Admin-only + service-role key, enforced
+  /// server-side. Returns the updated profile.
+  Future<Profile> updateUser(
+    String id, {
+    String? fullName,
+    String? email,
+    String? password,
+  }) async {
+    final body = <String, dynamic>{
+      if (fullName != null && fullName.isNotEmpty) 'full_name': fullName,
+      if (email != null && email.isNotEmpty) 'email': email,
+      if (password != null && password.isNotEmpty) 'password': password,
+    };
+    final data = await api.patch('/users/$id', body) as Map<String, dynamic>;
+    return Profile.fromJson(data);
+  }
+
   Future<void> deleteUser(String id) => api.delete('/users/$id');
 }

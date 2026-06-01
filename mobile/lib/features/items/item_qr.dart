@@ -1,5 +1,9 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../models.dart';
 
@@ -22,7 +26,56 @@ String? parseItemQr(String raw) {
   return null;
 }
 
-/// Show a printable/scannable QR code for [item] in a dialog.
+/// Render the item's QR code to a PNG (black on a white background, so it stays
+/// scannable wherever it's opened). Returns null if rendering fails.
+Future<Uint8List?> renderItemQrPng(String itemId, {double size = 600}) async {
+  final painter = QrPainter(
+    data: itemQrData(itemId),
+    version: QrVersions.auto,
+    gapless: true,
+  );
+  const pad = 48.0;
+  final total = size + pad * 2;
+
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  canvas.drawRect(
+    Rect.fromLTWH(0, 0, total, total),
+    Paint()..color = Colors.white,
+  );
+  canvas.translate(pad, pad);
+  painter.paint(canvas, Size(size, size));
+
+  final picture = recorder.endRecording();
+  final image = await picture.toImage(total.toInt(), total.toInt());
+  final data = await image.toByteData(format: ui.ImageByteFormat.png);
+  return data?.buffer.asUint8List();
+}
+
+/// Export the item's QR code as a PNG through the system share sheet (Save to
+/// Files / Photos, send, etc.). Available to everyone — admins and members.
+Future<void> downloadItemQr(BuildContext context, Item item) async {
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    final png = await renderItemQrPng(item.id);
+    if (png == null) {
+      messenger.showSnackBar(const SnackBar(content: Text('Could not generate the QR image.')));
+      return;
+    }
+    final safe = (item.sku ?? item.name).replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '-');
+    await Share.shareXFiles(
+      [XFile.fromData(png, mimeType: 'image/png', name: 'qr-$safe.png')],
+      subject: 'QR code · ${item.name}',
+      text: 'QR code for ${item.name}',
+      fileNameOverrides: ['qr-$safe.png'],
+    );
+  } catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text('Could not export QR: $e')));
+  }
+}
+
+/// Show a printable/scannable QR code for [item] in a dialog, with a button to
+/// download/share it as a PNG.
 Future<void> showItemQrDialog(BuildContext context, Item item) {
   return showDialog<void>(
     context: context,
@@ -59,6 +112,11 @@ Future<void> showItemQrDialog(BuildContext context, Item item) {
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+        FilledButton.icon(
+          onPressed: () => downloadItemQr(context, item),
+          icon: const Icon(Icons.download_outlined, size: 18),
+          label: const Text('Download'),
+        ),
       ],
     ),
   );

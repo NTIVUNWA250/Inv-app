@@ -152,6 +152,48 @@ export async function setBlocked(id: string, blocked: boolean): Promise<void> {
   revalidatePath("/users");
 }
 
+export interface EditUserState {
+  ok?: boolean;
+  error?: string;
+}
+
+/**
+ * Update another user's account as an admin: display name, email, and/or
+ * password — for fixing things when the user can't themselves. Only the fields
+ * that are filled in are sent. Requires the API's service-role key (otherwise a
+ * clear 501 comes back). `id` is bound by the caller.
+ */
+export async function editUser(
+  id: string,
+  _prev: EditUserState,
+  formData: FormData,
+): Promise<EditUserState> {
+  const api = serverApi();
+  const full_name = String(formData.get("full_name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+
+  const body: Record<string, string> = {};
+  if (full_name) body.full_name = full_name;
+  if (email) body.email = email;
+  if (password) {
+    if (password.length < 6) return { error: "Password must be at least 6 characters." };
+    body.password = password;
+  }
+  if (Object.keys(body).length === 0) {
+    return { error: "Fill in at least one field to update." };
+  }
+
+  try {
+    await api.patch(`/users/${id}`, body);
+  } catch (err) {
+    return { error: err instanceof ApiError ? err.message : "Could not update user." };
+  }
+
+  revalidatePath("/users");
+  return { ok: true };
+}
+
 export interface UpdateProfileState {
   ok?: boolean;
   error?: string;

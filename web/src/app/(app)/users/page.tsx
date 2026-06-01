@@ -6,6 +6,7 @@ import { RoleSelect } from "@/components/dashboard/role-select";
 import { AddUserForm } from "@/components/dashboard/add-user-form";
 import { DeleteUserButton } from "@/components/dashboard/delete-user-button";
 import { BlockUserButton } from "@/components/dashboard/block-user-button";
+import { EditUserButton } from "@/components/dashboard/edit-user-button";
 import type { ApiUser, Profile } from "@/lib/api/types";
 
 export default async function UsersPage() {
@@ -97,6 +98,7 @@ export default async function UsersPage() {
                         <span className="text-xs text-muted">—</span>
                       ) : (
                         <div className="flex justify-end gap-1">
+                          <EditUserButton id={p.id} fullName={p.full_name ?? ""} />
                           <BlockUserButton
                             id={p.id}
                             name={p.full_name || "this user"}

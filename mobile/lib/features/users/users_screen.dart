@@ -120,6 +120,20 @@ class _UsersScreenState extends State<UsersScreen> {
     if (added == true) await _refresh();
   }
 
+  Future<void> _openEditSheet(Profile p) async {
+    final updated = await showModalBottomSheet<Profile>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _EditUserSheet(profile: p),
+    );
+    if (updated == null || !mounted) return;
+    setState(() {
+      final i = _profiles.indexWhere((x) => x.id == updated.id);
+      if (i != -1) _profiles[i] = updated;
+    });
+    _snack('${updated.fullName ?? 'User'} updated.');
+  }
+
   @override
   Widget build(BuildContext context) {
     final myId = ApiClient.instance.currentUserId;
@@ -185,6 +199,12 @@ class _UsersScreenState extends State<UsersScreen> {
                           DropdownMenuItem(value: 'admin', child: Text('admin')),
                         ],
                       ),
+                      if (!isSelf)
+                        IconButton(
+                          tooltip: 'Edit user',
+                          icon: const Icon(Icons.edit_outlined),
+                          onPressed: () => _openEditSheet(p),
+                        ),
                       if (!isSelf)
                         IconButton(
                           tooltip: p.blocked ? 'Unblock' : 'Block',
@@ -316,6 +336,116 @@ class _AddUserSheetState extends State<_AddUserSheet> {
           Text(
             'Requires the API service-role key to be configured.',
             style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Admin edit of another user's name, email, and/or password. Pops the updated
+/// [Profile] on success; only the fields that were filled in are changed.
+class _EditUserSheet extends StatefulWidget {
+  const _EditUserSheet({required this.profile});
+
+  final Profile profile;
+
+  @override
+  State<_EditUserSheet> createState() => _EditUserSheetState();
+}
+
+class _EditUserSheetState extends State<_EditUserSheet> {
+  final _users = const UsersRepository();
+  late final TextEditingController _name =
+      TextEditingController(text: widget.profile.fullName ?? '');
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _email.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final name = _name.text.trim();
+    final email = _email.text.trim();
+    final password = _password.text;
+    if (name.isEmpty && email.isEmpty && password.isEmpty) {
+      setState(() => _error = 'Fill in at least one field to update.');
+      return;
+    }
+    if (password.isNotEmpty && password.length < 6) {
+      setState(() => _error = 'Password must be at least 6 characters.');
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final updated = await _users.updateUser(
+        widget.profile.id,
+        fullName: name,
+        email: email,
+        password: password,
+      );
+      if (mounted) Navigator.pop(context, updated);
+    } catch (e) {
+      setState(() {
+        _error = '$e';
+        _saving = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Edit ${widget.profile.fullName ?? 'user'}',
+              style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 16),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(_error!, style: const TextStyle(color: Color(0xFFEF4444))),
+            ),
+          TextField(controller: _name, decoration: const InputDecoration(labelText: 'Full name')),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _email,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(
+              labelText: 'Email',
+              hintText: 'Leave blank to keep current',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _password,
+            decoration: const InputDecoration(
+              labelText: 'New password',
+              hintText: 'Leave blank to keep current',
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text('Only the fields you fill in will change.',
+              style: TextStyle(fontSize: 12, color: muted)),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: _saving ? null : _save,
+            child: Text(_saving ? 'Saving…' : 'Save changes'),
           ),
         ],
       ),
