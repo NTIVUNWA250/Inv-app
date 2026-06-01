@@ -13,19 +13,37 @@ class UsersScreen extends StatefulWidget {
 
 class _UsersScreenState extends State<UsersScreen> {
   final _users = const UsersRepository();
-  late Future<List<Profile>> _future;
+
+  List<Profile> _profiles = [];
+  Object? _error;
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _future = _users.fetchProfiles();
+    _load();
   }
 
-  Future<void> _refresh() async {
-    final f = _users.fetchProfiles();
-    setState(() => _future = f);
-    await f;
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final profiles = await _users.fetchProfiles();
+      if (!mounted) return;
+      setState(() {
+        _profiles = profiles;
+        _error = null;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e;
+        _loading = false;
+      });
+    }
   }
+
+  Future<void> _refresh() => _load();
 
   void _snack(String msg) {
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -34,7 +52,38 @@ class _UsersScreenState extends State<UsersScreen> {
   Future<void> _changeRole(Profile p, String role) async {
     if (role == p.role) return;
     try {
-      await _users.changeRole(p.id, role);
+      // Apply the server's response directly rather than re-fetching, so a
+      // stale cached GET /profiles can't make the change appear to revert.
+      final updated = await _users.changeRole(p.id, role);
+      if (!mounted) return;
+      setState(() {
+        final i = _profiles.indexWhere((x) => x.id == p.id);
+        if (i != -1) _profiles[i] = updated;
+      });
+      _snack('${updated.fullName ?? 'User'} is now ${updated.role}.');
+    } catch (e) {
+      _snack('$e');
+    }
+  }
+
+  Future<void> _toggleBlock(Profile p) async {
+    final verb = p.blocked ? 'Unblock' : 'Block';
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('$verb ${p.fullName ?? 'this user'}?'),
+        content: Text(p.blocked
+            ? 'They will be able to sign in and use the app again.'
+            : 'They will be signed out and blocked from using the app until unblocked.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(verb)),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      await _users.setBlocked(p.id, !p.blocked);
       await _refresh();
     } catch (e) {
       _snack('$e');
@@ -83,16 +132,15 @@ class _UsersScreenState extends State<UsersScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: _refresh,
-        child: FutureBuilder<List<Profile>>(
-          future: _future,
-          builder: (context, snap) {
-            if (snap.connectionState == ConnectionState.waiting) {
+        child: Builder(
+          builder: (context) {
+            if (_loading) {
               return const Center(child: CircularProgressIndicator());
             }
-            if (snap.hasError) {
-              return ListView(children: [const SizedBox(height: 80), Center(child: Text('${snap.error}'))]);
+            if (_error != null) {
+              return ListView(children: [const SizedBox(height: 80), Center(child: Text('$_error'))]);
             }
-            final profiles = snap.data!;
+            final profiles = _profiles;
             if (profiles.isEmpty) {
               return ListView(children: const [SizedBox(height: 80), Center(child: Text('No users found.'))]);
             }
@@ -104,7 +152,26 @@ class _UsersScreenState extends State<UsersScreen> {
                 final p = profiles[i];
                 final isSelf = p.id == myId;
                 return ListTile(
-                  title: Text(p.fullName ?? '—'),
+                  title: Row(
+                    children: [
+                      Flexible(child: Text(p.fullName ?? '—')),
+                      if (p.blocked) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Text('Blocked',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFFB45309))),
+                        ),
+                      ],
+                    ],
+                  ),
                   subtitle: Text(isSelf ? 'You' : 'Joined ${_date(p.createdAt)}'),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -118,6 +185,13 @@ class _UsersScreenState extends State<UsersScreen> {
                           DropdownMenuItem(value: 'admin', child: Text('admin')),
                         ],
                       ),
+                      if (!isSelf)
+                        IconButton(
+                          tooltip: p.blocked ? 'Unblock' : 'Block',
+                          icon: Icon(p.blocked ? Icons.check_circle_outline : Icons.block),
+                          color: p.blocked ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                          onPressed: () => _toggleBlock(p),
+                        ),
                       if (!isSelf)
                         IconButton(
                           icon: const Icon(Icons.delete_outline),

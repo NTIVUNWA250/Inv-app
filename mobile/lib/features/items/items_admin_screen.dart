@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../models.dart';
 import '../../repository.dart';
+import '../../widgets.dart';
 import 'item_detail_screen.dart';
 
 class _Data {
-  _Data(this.items, this.locations);
+  _Data(this.items, this.locations, this.quantityByItem);
   final List<Item> items;
   final List<Location> locations;
+  final Map<String, int> quantityByItem;
 }
 
 class ItemsAdminScreen extends StatefulWidget {
@@ -28,8 +30,17 @@ class _ItemsAdminScreenState extends State<ItemsAdminScreen> {
   }
 
   Future<_Data> _load() async {
-    final results = await Future.wait([_repo.fetchItems(), _repo.fetchLocations()]);
-    return _Data(results[0] as List<Item>, results[1] as List<Location>);
+    final results = await Future.wait([
+      _repo.fetchItems(),
+      _repo.fetchLocations(),
+      _repo.fetchStock(),
+    ]);
+    final stock = results[2] as List<StockLevel>;
+    final quantityByItem = <String, int>{};
+    for (final s in stock) {
+      quantityByItem[s.itemId] = (quantityByItem[s.itemId] ?? 0) + s.quantity;
+    }
+    return _Data(results[0] as List<Item>, results[1] as List<Location>, quantityByItem);
   }
 
   Future<void> _refresh() async {
@@ -104,12 +115,22 @@ class _ItemsAdminScreenState extends State<ItemsAdminScreen> {
                       separatorBuilder: (_, __) => const Divider(height: 1),
                       itemBuilder: (context, i) {
                         final item = data.items[i];
+                        final quantity = data.quantityByItem[item.id] ?? 0;
                         return ListTile(
                           title: Text(item.name),
                           subtitle: Text(item.sku ?? 'No SKU'),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: () => _delete(item),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('$quantity'),
+                              const SizedBox(width: 8),
+                              StatusChip(quantity: quantity),
+                              const SizedBox(width: 4),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline),
+                                onPressed: () => _delete(item),
+                              ),
+                            ],
                           ),
                           onTap: () => Navigator.of(context).push(MaterialPageRoute(
                             builder: (_) => ItemDetailScreen(itemId: item.id),

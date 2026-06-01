@@ -101,8 +101,13 @@ class UsersRepository {
     return data.map((e) => Profile.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<void> changeRole(String id, String role) =>
-      api.patch('/profiles/$id/role', {'role': role});
+  /// Change a user's role (admin-only, enforced server-side). Returns the
+  /// updated profile from the API so the UI can reflect it without re-fetching
+  /// (a re-fetch can be served stale from the browser's HTTP cache on web).
+  Future<Profile> changeRole(String id, String role) async {
+    final data = await api.patch('/profiles/$id/role', {'role': role}) as Map<String, dynamic>;
+    return Profile.fromJson(data);
+  }
 
   /// Block or unblock a user (admin-only, enforced server-side).
   Future<void> setBlocked(String id, bool blocked) =>
