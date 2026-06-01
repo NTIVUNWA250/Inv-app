@@ -5,6 +5,7 @@ import '../../config/theme.dart';
 import '../../models.dart';
 import '../../repository.dart';
 import '../../widgets.dart';
+import 'item_qr.dart';
 
 class _Data {
   _Data(this.item, this.stock, this.movements, this.profiles, this.locations);
@@ -165,6 +166,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                             ),
                         ],
                       ),
+                    ),
+                    IconButton(
+                      tooltip: 'Show QR code',
+                      icon: const Icon(Icons.qr_code_2),
+                      onPressed: () => showItemQrDialog(context, data.item),
                     ),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,

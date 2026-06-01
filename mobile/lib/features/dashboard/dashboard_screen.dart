@@ -5,6 +5,7 @@ import '../../repository.dart';
 import '../../widgets.dart';
 import '../items/item_detail_screen.dart';
 import '../locations/location_detail_screen.dart';
+import '../scan/scan_screen.dart';
 
 class _Data {
   _Data(this.items, this.stock, this.locations);
@@ -53,7 +54,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Inventory Dashboard')),
+      appBar: AppBar(
+        title: const Text('Inventory Dashboard'),
+        actions: [
+          IconButton(
+            tooltip: 'Scan item QR',
+            icon: const Icon(Icons.qr_code_scanner),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ScanScreen()),
+            ),
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: FutureBuilder<_Data>(

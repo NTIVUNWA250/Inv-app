@@ -136,6 +136,15 @@ class ApiClient {
     _currentEmail = res['email'] as String? ?? _currentEmail;
   }
 
+  /// Change the signed-in user's password. The server verifies [current]
+  /// before applying [next].
+  Future<void> changePassword(String current, String next) async {
+    await post('/auth/change-password', {
+      'current_password': current,
+      'new_password': next,
+    });
+  }
+
   // --- Generic requests ---------------------------------------------------
 
   Future<dynamic> get(String path) => _request('GET', path);

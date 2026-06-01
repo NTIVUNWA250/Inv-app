@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { anon, revokeSession } from "../supabase.js";
+import { env } from "../env.js";
 import { asyncHandler, HttpError } from "../http.js";
 import { requireAuth } from "../middleware/auth.js";
 
@@ -64,6 +65,56 @@ authRouter.post(
   requireAuth,
   asyncHandler(async (req, res) => {
     await revokeSession(req.accessToken);
+    res.status(204).send();
+  }),
+);
+
+/**
+ * Change the signed-in user's password. Verifies the current password first
+ * (re-authenticating with the anon client), then updates it through GoTrue
+ * using the caller's own access token — no service-role key required.
+ */
+const changePasswordBody = z.object({
+  current_password: z.string().min(1),
+  new_password: z.string().min(6),
+});
+
+authRouter.post(
+  "/change-password",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { current_password, new_password } = changePasswordBody.parse(req.body);
+
+    if (!req.user.email) {
+      throw new HttpError(400, "This account has no email to verify against.", "no_email");
+    }
+
+    const { error: verifyError } = await anon.auth.signInWithPassword({
+      email: req.user.email,
+      password: current_password,
+    });
+    if (verifyError) {
+      throw new HttpError(400, "Current password is incorrect.", "invalid_current_password");
+    }
+
+    const response = await fetch(`${env.supabaseUrl}/auth/v1/user`, {
+      method: "PUT",
+      headers: {
+        apikey: env.supabaseAnonKey,
+        Authorization: `Bearer ${req.accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ password: new_password }),
+    });
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as { msg?: string; error_description?: string };
+      throw new HttpError(
+        400,
+        body.msg ?? body.error_description ?? "Could not change password.",
+        "change_password_failed",
+      );
+    }
+
     res.status(204).send();
   }),
 );
