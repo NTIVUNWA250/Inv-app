@@ -152,6 +152,37 @@ export async function setBlocked(id: string, blocked: boolean): Promise<void> {
   revalidatePath("/users");
 }
 
+export interface ChangePasswordState {
+  ok?: boolean;
+  error?: string;
+}
+
+/**
+ * Change the signed-in user's own password. The API verifies the current
+ * password before applying the new one.
+ */
+export async function changePassword(
+  _prev: ChangePasswordState,
+  formData: FormData,
+): Promise<ChangePasswordState> {
+  const api = serverApi();
+  const current_password = String(formData.get("current_password") ?? "");
+  const new_password = String(formData.get("new_password") ?? "");
+  const confirm_password = String(formData.get("confirm_password") ?? "");
+
+  if (!current_password) return { error: "Enter your current password." };
+  if (new_password.length < 6) return { error: "New password must be at least 6 characters." };
+  if (new_password !== confirm_password) return { error: "New passwords don't match." };
+
+  try {
+    await api.post("/auth/change-password", { current_password, new_password });
+  } catch (err) {
+    return { error: err instanceof ApiError ? err.message : "Could not change password." };
+  }
+
+  return { ok: true };
+}
+
 export interface EditUserState {
   ok?: boolean;
   error?: string;

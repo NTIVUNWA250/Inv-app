@@ -23,7 +23,7 @@ stockRouter.get(
 
     let query = req.supabase
       .from("item_stock")
-      .select("item_id, location_id, quantity, updated_at, items(name, sku), locations(name)");
+      .select("item_id, location_id, quantity, capacity, updated_at, items(name, sku), locations(name)");
 
     if (item_id) query = query.eq("item_id", item_id);
     if (location_id) query = query.eq("location_id", location_id);

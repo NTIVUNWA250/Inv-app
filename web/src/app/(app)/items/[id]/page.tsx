@@ -42,6 +42,7 @@ export default async function ItemDetailPage({
 
   const nameById = new Map(profiles.map((p) => [p.id, p.full_name]));
   const totalQty = stock.reduce((sum, r) => sum + r.quantity, 0);
+  const totalCap = stock.reduce((sum, r) => sum + (r.capacity ?? 0), 0);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -66,7 +67,7 @@ export default async function ItemDetailPage({
             <p className="text-2xl font-semibold tabular-nums text-fg">{totalQty}</p>
             <p className="text-xs text-muted">in stock</p>
           </div>
-          <StatusBadge quantity={totalQty} />
+          <StatusBadge quantity={totalQty} capacity={totalCap} />
         </div>
       </div>
 
@@ -85,7 +86,10 @@ export default async function ItemDetailPage({
                     <MapPin className="h-4 w-4 text-muted" />
                     {row.locations?.name ?? row.location_id}
                   </span>
-                  <span className="text-sm tabular-nums text-muted">{row.quantity}</span>
+                  <span className="text-sm tabular-nums text-muted">
+                    {row.quantity}
+                    {row.capacity ? <span className="text-muted/60"> / {row.capacity}</span> : null}
+                  </span>
                 </li>
               ))}
             </ul>

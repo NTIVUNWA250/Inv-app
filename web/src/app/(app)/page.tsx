@@ -5,9 +5,10 @@ import { StatCard, StatusBadge, Panel } from "@/components/dashboard/widgets";
 import {
   totalsByItem,
   totalsByLocation,
+  capacityByItem,
   locationCountByItem,
   statusFor,
-  LOW_STOCK_THRESHOLD,
+  LOW_STOCK_RATIO,
 } from "@/lib/inventory";
 import type { Item, Location, StockLevel } from "@/lib/api/types";
 
@@ -36,18 +37,20 @@ export default async function OverviewPage({
 
   const byItem = totalsByItem(stock);
   const byLocation = totalsByLocation(stock);
+  const capItem = capacityByItem(stock);
   const locCount = locationCountByItem(stock);
 
   const rows = items
     .map((item) => ({
       item,
       qty: byItem.get(item.id) ?? 0,
+      cap: capItem.get(item.id) ?? 0,
       locs: locCount.get(item.id) ?? 0,
     }))
     .sort((a, b) => a.qty - b.qty);
 
   const totalUnits = stock.reduce((sum, r) => sum + r.quantity, 0);
-  const lowStock = rows.filter((r) => statusFor(r.qty) !== "ok").slice(0, 6);
+  const lowStock = rows.filter((r) => statusFor(r.qty, r.cap) !== "ok").slice(0, 6);
 
   // The search box filters just the inventory table; stats stay global.
   const q = query.toLowerCase();
@@ -90,9 +93,9 @@ export default async function OverviewPage({
         <StatCard label="Locations" value={locations.length} icon={Warehouse} />
         <StatCard
           label="Low / out of stock"
-          value={rows.filter((r) => statusFor(r.qty) !== "ok").length}
+          value={rows.filter((r) => statusFor(r.qty, r.cap) !== "ok").length}
           icon={AlertTriangle}
-          hint={`Threshold: ${LOW_STOCK_THRESHOLD} units`}
+          hint={`Low at ≤${Math.round(LOW_STOCK_RATIO * 100)}% of capacity`}
         />
       </div>
 
@@ -104,7 +107,7 @@ export default async function OverviewPage({
             </p>
           ) : (
             <ul className="divide-y divide-line">
-              {lowStock.map(({ item, qty }) => (
+              {lowStock.map(({ item, qty, cap }) => (
                 <li key={item.id} className="flex items-center justify-between px-5 py-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-fg">{item.name}</p>
@@ -112,7 +115,7 @@ export default async function OverviewPage({
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm tabular-nums text-muted">{qty}</span>
-                    <StatusBadge quantity={qty} />
+                    <StatusBadge quantity={qty} capacity={cap} />
                   </div>
                 </li>
               ))}
@@ -168,7 +171,7 @@ export default async function OverviewPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {tableRows.map(({ item, qty, locs }) => (
+                {tableRows.map(({ item, qty, cap, locs }) => (
                   <tr key={item.id} className="hover:bg-surface-2/40">
                     <td className="px-5 py-3 font-medium">
                       <Link href={`/items/${item.id}`} className="text-fg hover:text-pink-400">
@@ -179,7 +182,7 @@ export default async function OverviewPage({
                     <td className="px-5 py-3 text-muted">{locs}</td>
                     <td className="px-5 py-3 text-right tabular-nums text-fg">{qty}</td>
                     <td className="px-5 py-3 text-right">
-                      <StatusBadge quantity={qty} />
+                      <StatusBadge quantity={qty} capacity={cap} />
                     </td>
                   </tr>
                 ))}

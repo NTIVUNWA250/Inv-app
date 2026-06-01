@@ -65,7 +65,7 @@ itemsRouter.get(
   asyncHandler(async (req, res) => {
     const { data, error } = await req.supabase
       .from("item_stock")
-      .select("item_id, location_id, quantity, updated_at, locations(name)")
+      .select("item_id, location_id, quantity, capacity, updated_at, locations(name)")
       .eq("item_id", req.params.id);
     if (error) throw error;
     res.json(data);

@@ -4,6 +4,7 @@ import { serverApi, ApiError } from "@/lib/api/server";
 import { Panel } from "@/components/dashboard/widgets";
 import { ThemeToggle } from "@/components/dashboard/theme-toggle";
 import { EditProfileForm } from "@/components/dashboard/edit-profile-form";
+import { ChangePasswordForm } from "@/components/dashboard/change-password-form";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/app/(auth)/actions";
 import type { ApiUser, Profile } from "@/lib/api/types";
@@ -43,6 +44,10 @@ export default async function SettingsPage() {
             {profile?.role ?? "member"}
           </span>
         </div>
+      </Panel>
+
+      <Panel title="Password">
+        <ChangePasswordForm />
       </Panel>
 
       <Panel title="Appearance">

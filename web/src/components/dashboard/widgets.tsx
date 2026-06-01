@@ -31,8 +31,8 @@ const STATUS_STYLES: Record<StockStatus, { label: string; className: string }> =
   ok: { label: "In stock", className: "bg-emerald-500/15 text-emerald-400" },
 };
 
-export function StatusBadge({ quantity }: { quantity: number }) {
-  const { label, className } = STATUS_STYLES[statusFor(quantity)];
+export function StatusBadge({ quantity, capacity }: { quantity: number; capacity?: number }) {
+  const { label, className } = STATUS_STYLES[statusFor(quantity, capacity)];
   return (
     <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", className)}>
       {label}

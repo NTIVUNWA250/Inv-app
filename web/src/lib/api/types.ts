@@ -40,6 +40,8 @@ export interface StockLevel {
   item_id: string;
   location_id: string;
   quantity: number;
+  /** The amount this (item, location) was first stocked with — its ceiling. */
+  capacity: number;
   updated_at: string;
   items?: { name: string; sku: string | null } | null;
   locations?: { name: string } | null;

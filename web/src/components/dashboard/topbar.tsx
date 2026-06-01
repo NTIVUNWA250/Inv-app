@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { SearchBox } from "./search-box";
+import { ScanButton } from "./scan-button";
 
 interface TopbarProps {
   name: string;
@@ -18,6 +19,7 @@ export function Topbar({ name, role }: TopbarProps) {
       </div>
 
       <div className="ml-auto flex items-center gap-3">
+        <ScanButton />
         {role === "admin" ? (
           <span className="rounded-full bg-pink-500/15 px-2.5 py-1 text-xs font-medium text-pink-400">
             Admin
