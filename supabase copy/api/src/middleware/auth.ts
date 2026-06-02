@@ -1,0 +1,84 @@
+import type { Request, Response, NextFunction } from "express";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
+import { anon, userClient } from "../supabase.js";
+import { HttpError } from "../http.js";
+
+// Augment Express's Request with the authenticated user + their scoped client.
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace Express {
+    interface Request {
+      user: User;
+      supabase: SupabaseClient;
+      accessToken: string;
+    }
+  }
+}
+
+function bearerToken(req: Request): string | null {
+  const header = req.header("authorization") ?? req.header("Authorization");
+  if (!header) return null;
+  const [scheme, token] = header.split(" ");
+  if (scheme?.toLowerCase() !== "bearer" || !token) return null;
+  return token.trim();
+}
+
+/**
+ * Require a valid Supabase access token. Verifies the JWT, then attaches:
+ *  - req.user        the authenticated user
+ *  - req.supabase    a Supabase client scoped to that user (RLS applies)
+ *  - req.accessToken the raw token (for logout, etc.)
+ */
+export async function requireAuth(req: Request, _res: Response, next: NextFunction): Promise<void> {
+  try {
+    const token = bearerToken(req);
+    if (!token) {
+      throw new HttpError(401, "Missing or malformed Authorization header.", "no_token");
+    }
+
+    const { data, error } = await anon.auth.getUser(token);
+    if (error || !data.user) {
+      throw new HttpError(401, "Invalid or expired session.", "invalid_token");
+    }
+
+    req.user = data.user;
+    req.accessToken = token;
+    req.supabase = userClient(token);
+
+    // Reject blocked users on every request, so an admin blocking someone takes
+    // effect immediately — even for a session that's already signed in.
+    const { data: profile } = await req.supabase
+      .from("profiles")
+      .select("blocked")
+      .eq("id", data.user.id)
+      .maybeSingle();
+    if (profile?.blocked) {
+      throw new HttpError(403, "Your account has been blocked. Contact an administrator.", "account_blocked");
+    }
+
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Require the authenticated user to be an admin. Run after requireAuth. Reads
+ * the caller's role through their own RLS-scoped client.
+ */
+export async function requireAdmin(req: Request, _res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { data, error } = await req.supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", req.user.id)
+      .single();
+    if (error) throw error;
+    if (data?.role !== "admin") {
+      throw new HttpError(403, "Admin privileges required.", "not_admin");
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+}

@@ -1,0 +1,127 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { QrCode, X } from "lucide-react";
+import type { Html5Qrcode } from "html5-qrcode";
+
+const PREFIX = "inventory:item:";
+
+/** Accept our prefixed payload or a bare item id; null for anything else. */
+function parseItemQr(raw: string): string | null {
+  const v = raw.trim();
+  if (v.startsWith(PREFIX)) {
+    const id = v.slice(PREFIX.length).trim();
+    return id || null;
+  }
+  if (/^[0-9a-fA-F-]{32,40}$/.test(v)) return v;
+  return null;
+}
+
+/**
+ * QR scanner for the web app (mirrors the mobile scanner). Reads an item QR and
+ * opens that item. Available to everyone — admins and members.
+ */
+export function ScanButton() {
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const handledRef = useRef(false);
+
+  useEffect(() => {
+    if (!open) return;
+    handledRef.current = false;
+    setError(null);
+
+    let scanner: Html5Qrcode | null = null;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { Html5Qrcode } = await import("html5-qrcode");
+        if (cancelled) return;
+        scanner = new Html5Qrcode("qr-reader");
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 240, height: 240 } },
+          (decodedText) => {
+            if (handledRef.current) return;
+            const id = parseItemQr(decodedText);
+            if (id) {
+              handledRef.current = true;
+              setOpen(false);
+              router.push(`/items/${id}`);
+            }
+          },
+          () => {
+            /* per-frame decode misses are normal; ignore */
+          },
+        );
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Couldn't start the camera.");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (scanner?.isScanning) {
+        scanner
+          .stop()
+          .then(() => scanner?.clear())
+          .catch(() => {});
+      }
+    };
+  }, [open, router]);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Scan item QR"
+        title="Scan item QR"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-fg"
+      >
+        <QrCode className="h-5 w-5" />
+      </button>
+
+      {open ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-xl border border-line bg-surface shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-line px-5 py-4">
+              <h2 className="text-sm font-semibold text-fg">Scan item QR</h2>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="Close"
+                className="text-muted transition-colors hover:text-fg"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-5">
+              <div id="qr-reader" className="overflow-hidden rounded-lg [&_video]:rounded-lg" />
+              {error ? (
+                <p className="mt-3 rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                  {error} Allow camera access, or use a device that has a camera.
+                </p>
+              ) : (
+                <p className="mt-3 text-center text-xs text-muted">
+                  Point your camera at an item&apos;s QR code.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}
