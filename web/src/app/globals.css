@@ -1,45 +1,182 @@
 @import "tailwindcss";
 
+/* Enable `dark:` utilities driven by the `.dark` class on <html>. */
+@custom-variant dark (&:is(.dark *));
+
 /*
-  Semantic color tokens. Components use bg-canvas / bg-surface / bg-surface-2 /
-  border-line / text-base / text-muted, which resolve to the CSS variables below.
-  Light is the default; adding the `.dark` class to <html> swaps every token, so
-  the whole UI re-themes without per-component dark: variants.
+  Verlet design system tokens. macOS-inspired: solid surfaces, pink `--highlight`
+  accent, typographic contrast (serif headings / mono numbers / sans body).
+  Light is the default; adding `.dark` to <html> swaps every token so the whole
+  UI re-themes without per-component dark: variants.
 */
 :root {
-  --canvas: #f7f7f8;
-  --surface: #ffffff;
-  --surface-2: #f1f1f4;
-  --line: #e4e4e7;
-  --fg: #18181b;
-  --muted: #6b7280;
-  --accent: #db2777;
+  --background: #f4f4f6;
+  --foreground: #1c1c1e;
+  --card: rgba(255, 255, 255, 0.65);
+  --card-foreground: #1c1c1e;
+  --popover: rgba(255, 255, 255, 0.85);
+  --popover-foreground: #1c1c1e;
+  --primary: #1c1c1e;
+  --primary-foreground: #ffffff;
+  --secondary: #e8e8ec;
+  --secondary-foreground: #1c1c1e;
+  --muted: #e8e8ec;
+  --muted-foreground: #8e8e93;
+  --accent: #e8e8ec;
+  --accent-foreground: #1c1c1e;
+  --destructive: #ff3b30;
+  --destructive-foreground: #ffffff;
+  --destructive-soft: rgba(255, 59, 48, 0.08);
+  --border: rgba(0, 0, 0, 0.08);
+  --input: rgba(0, 0, 0, 0.08);
+  --ring: #d64d7a;
+  --highlight: #d64d7a;
+  --highlight-foreground: #ffffff;
+  --highlight-soft: rgba(214, 77, 122, 0.08);
+  --surface: rgba(0, 0, 0, 0.04);
+  --separator: rgba(0, 0, 0, 0.06);
+  --hover: rgba(0, 0, 0, 0.04);
+  --success: #34c759;
+  --success-foreground: #ffffff;
+  --success-soft: rgba(52, 199, 89, 0.1);
+  --warning: #ff9f0a;
+  --warning-foreground: #ffffff;
+  --warning-soft: rgba(255, 159, 10, 0.1);
+  --info: #5ac8fa;
+  --info-foreground: #ffffff;
+  --info-soft: rgba(90, 200, 250, 0.1);
 }
 
 .dark {
-  --canvas: #09090b;
-  --surface: #18181b;
-  --surface-2: #27272a;
-  --line: #27272a;
-  --fg: #fafafa;
-  --muted: #a1a1aa;
-  --accent: #db2777;
+  --background: #0a0a0c;
+  --foreground: rgba(255, 255, 255, 0.92);
+  --card: rgba(22, 22, 26, 0.7);
+  --card-foreground: rgba(255, 255, 255, 0.92);
+  --popover: rgba(22, 22, 26, 0.85);
+  --popover-foreground: rgba(255, 255, 255, 0.92);
+  --primary: #ffffff;
+  --primary-foreground: #0a0a0c;
+  --secondary: rgba(255, 255, 255, 0.08);
+  --secondary-foreground: rgba(255, 255, 255, 0.92);
+  --muted: rgba(255, 255, 255, 0.08);
+  --muted-foreground: rgba(255, 255, 255, 0.5);
+  --accent: rgba(255, 255, 255, 0.08);
+  --accent-foreground: rgba(255, 255, 255, 0.92);
+  --destructive: #ff453a;
+  --destructive-foreground: #ffffff;
+  --destructive-soft: rgba(255, 69, 58, 0.1);
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #e06090;
+  --highlight: #e06090;
+  --highlight-foreground: #ffffff;
+  --highlight-soft: rgba(224, 96, 144, 0.1);
+  --surface: rgba(255, 255, 255, 0.04);
+  --separator: rgba(255, 255, 255, 0.06);
+  --hover: rgba(255, 255, 255, 0.04);
+  --success: #30d158;
+  --success-foreground: #ffffff;
+  --success-soft: rgba(48, 209, 88, 0.12);
+  --warning: #ffd60a;
+  --warning-foreground: #1c1c1e;
+  --warning-soft: rgba(255, 214, 10, 0.12);
+  --info: #64d2ff;
+  --info-foreground: #1c1c1e;
+  --info-soft: rgba(100, 210, 255, 0.12);
 }
 
 @theme inline {
-  --color-canvas: var(--canvas);
-  --color-surface: var(--surface);
-  --color-surface-2: var(--surface-2);
-  --color-line: var(--line);
-  --color-fg: var(--fg);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-highlight: var(--highlight);
+  --color-highlight-foreground: var(--highlight-foreground);
+  --color-highlight-soft: var(--highlight-soft);
+  --color-surface: var(--surface);
+  --color-separator: var(--separator);
+  --color-hover: var(--hover);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-soft: var(--info-soft);
+
+  --font-sans: var(--font-dm-sans);
+  --font-serif: var(--font-dm-serif-display);
+  --font-mono: var(--font-jetbrains-mono);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+
+  /*
+    Backward-compat aliases for the app's previous token names. These keep the
+    existing bg-canvas / bg-surface-2 / border-line / text-fg usages working
+    while pages are migrated to native Verlet tokens. (bg-surface and text-muted
+    are migrated in code instead — they collided with Verlet's own tokens.)
+  */
+  --color-canvas: var(--background);
+  --color-surface-2: var(--secondary);
+  --color-line: var(--border);
+  --color-fg: var(--foreground);
 }
 
-body {
-  background: var(--canvas);
-  color: var(--fg);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  /* Fluid root: 16px → 18px between ~375px and ~1024px viewports. */
+  html {
+    font-size: clamp(1rem, 0.93rem + 0.3vw, 1.125rem);
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans text-[14px];
+    position: relative;
+  }
+
+  /* Normalize DM Serif Display's larger x-height and tighten display leading. */
+  .font-serif {
+    font-size-adjust: 0.54;
+    line-height: 1.1;
+  }
+
+  /* Signature faint pink glow anchored top-left; adapts to the active theme. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    background: radial-gradient(
+      ellipse at 0% 0%,
+      color-mix(in srgb, var(--highlight) 3.5%, transparent) 0%,
+      transparent 60%
+    );
+  }
 }

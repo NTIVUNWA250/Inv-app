@@ -5,6 +5,13 @@ import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { recordMovement } from "@/app/(app)/items/[id]/actions";
 import type { Location } from "@/lib/api/types";
 
@@ -22,7 +29,7 @@ export function MovementForm({
 
   if (locations.length === 0) {
     return (
-      <p className="px-5 py-6 text-sm text-muted">
+      <p className="px-5 py-6 text-sm text-muted-foreground">
         No locations exist yet, so stock can&apos;t be moved.
       </p>
     );
@@ -45,18 +52,18 @@ export function MovementForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="mv-location">Location</Label>
-          <select
-            id="mv-location"
-            value={locationId}
-            onChange={(e) => setLocationId(e.target.value)}
-            className="flex h-10 w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
-          >
-            {locations.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {loc.name}
-              </option>
-            ))}
-          </select>
+          <Select value={locationId} onValueChange={setLocationId}>
+            <SelectTrigger id="mv-location">
+              <SelectValue placeholder="Choose a location" />
+            </SelectTrigger>
+            <SelectContent>
+              {locations.map((loc) => (
+                <SelectItem key={loc.id} value={loc.id}>
+                  {loc.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="mv-quantity">Quantity</Label>
@@ -70,7 +77,7 @@ export function MovementForm({
         </div>
       </div>
 
-      {error ? <p className="text-sm text-red-400">{error}</p> : null}
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <div className="flex flex-wrap gap-3">
         <Button type="button" disabled={pending} onClick={() => submit(true)}>

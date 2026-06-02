@@ -18,13 +18,26 @@ dependencies:
   qr_flutter: ^4.1.0
   mobile_scanner: ^7.2.0
   share_plus: ^10.1.4
+  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.1
+
+# Verlet app icon for Android + iOS. Regenerate with:
+#   dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/verlet_icon.png"
+  adaptive_icon_background: "#D64D7A"
+  adaptive_icon_foreground: "assets/verlet_foreground.png"
 
 flutter:
   uses-material-design: true
   assets:
     - .env
+    - assets/verlet_icon.png

@@ -3,6 +3,14 @@ import { Boxes, Package, Warehouse, AlertTriangle } from "lucide-react";
 import { serverApi, ApiError } from "@/lib/api/server";
 import { StatCard, StatusBadge, Panel } from "@/components/dashboard/widgets";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   totalsByItem,
   totalsByLocation,
   capacityByItem,
@@ -69,10 +77,10 @@ export default async function OverviewPage({
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-fg">
+        <h1 className="font-serif text-[1.75rem] text-foreground">
           Inventory Dashboard
         </h1>
-        <p className="mt-1 text-sm text-muted">
+        <p className="mt-1 text-sm text-muted-foreground">
           Track and manage your inventory efficiently.
         </p>
       </div>
@@ -102,7 +110,7 @@ export default async function OverviewPage({
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel title="Low stock items">
           {lowStock.length === 0 ? (
-            <p className="px-5 py-8 text-center text-sm text-muted">
+            <p className="px-5 py-8 text-center text-sm text-muted-foreground">
               Everything is well stocked.
             </p>
           ) : (
@@ -111,10 +119,10 @@ export default async function OverviewPage({
                 <li key={item.id} className="flex items-center justify-between px-5 py-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-fg">{item.name}</p>
-                    <p className="truncate text-xs text-muted">{item.sku ?? "No SKU"}</p>
+                    <p className="truncate text-xs text-muted-foreground">{item.sku ?? "No SKU"}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-sm tabular-nums text-muted">{qty}</span>
+                    <span className="text-sm tabular-nums text-muted-foreground">{qty}</span>
                     <StatusBadge quantity={qty} capacity={cap} />
                   </div>
                 </li>
@@ -125,7 +133,7 @@ export default async function OverviewPage({
 
         <Panel title="Storage locations">
           {locationRows.length === 0 ? (
-            <p className="px-5 py-8 text-center text-sm text-muted">
+            <p className="px-5 py-8 text-center text-sm text-muted-foreground">
               No locations yet.
             </p>
           ) : (
@@ -133,12 +141,12 @@ export default async function OverviewPage({
               {locationRows.map(({ loc, qty }) => (
                 <li key={loc.id} className="flex items-center justify-between px-5 py-3">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-2 text-muted">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-2 text-muted-foreground">
                       <Warehouse className="h-4 w-4" />
                     </div>
                     <span className="text-sm font-medium text-fg">{loc.name}</span>
                   </div>
-                  <span className="text-sm tabular-nums text-muted">{qty} units</span>
+                  <span className="text-sm tabular-nums text-muted-foreground">{qty} units</span>
                 </li>
               ))}
             </ul>
@@ -149,46 +157,44 @@ export default async function OverviewPage({
       <Panel
         title="Inventory overview"
         action={
-          <span className="text-xs text-muted">
+          <span className="text-xs text-muted-foreground">
             {query ? `${tableRows.length} of ${rows.length} · "${query}"` : `${items.length} items`}
           </span>
         }
       >
         {tableRows.length === 0 ? (
-          <p className="px-5 py-12 text-center text-sm text-muted">
+          <p className="px-5 py-12 text-center text-sm text-muted-foreground">
             {query ? `No items match "${query}".` : "No items in the catalog yet."}
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="text-xs uppercase tracking-wide text-muted">
-                <tr className="border-b border-line">
-                  <th className="px-5 py-3 font-medium">Item</th>
-                  <th className="px-5 py-3 font-medium">SKU</th>
-                  <th className="px-5 py-3 font-medium">Locations</th>
-                  <th className="px-5 py-3 text-right font-medium">Quantity</th>
-                  <th className="px-5 py-3 text-right font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {tableRows.map(({ item, qty, cap, locs }) => (
-                  <tr key={item.id} className="hover:bg-surface-2/40">
-                    <td className="px-5 py-3 font-medium">
-                      <Link href={`/items/${item.id}`} className="text-fg hover:text-pink-400">
-                        {item.name}
-                      </Link>
-                    </td>
-                    <td className="px-5 py-3 text-muted">{item.sku ?? "—"}</td>
-                    <td className="px-5 py-3 text-muted">{locs}</td>
-                    <td className="px-5 py-3 text-right tabular-nums text-fg">{qty}</td>
-                    <td className="px-5 py-3 text-right">
-                      <StatusBadge quantity={qty} capacity={cap} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="px-5">Item</TableHead>
+                <TableHead className="px-5">SKU</TableHead>
+                <TableHead className="px-5">Locations</TableHead>
+                <TableHead className="px-5 text-right">Quantity</TableHead>
+                <TableHead className="px-5 text-right">Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {tableRows.map(({ item, qty, cap, locs }) => (
+                <TableRow key={item.id}>
+                  <TableCell className="px-5 font-medium">
+                    <Link href={`/items/${item.id}`} className="text-foreground hover:text-highlight">
+                      {item.name}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="px-5 text-muted-foreground">{item.sku ?? "—"}</TableCell>
+                  <TableCell className="px-5 text-muted-foreground">{locs}</TableCell>
+                  <TableCell className="px-5 text-right font-mono tabular-nums text-foreground">{qty}</TableCell>
+                  <TableCell className="px-5 text-right">
+                    <StatusBadge quantity={qty} capacity={cap} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
       </Panel>
     </div>

@@ -5,6 +5,14 @@ import { UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { createUser, type AddUserState } from "@/app/(app)/admin/actions";
 
 export function AddUserForm() {
@@ -18,12 +26,14 @@ export function AddUserForm() {
   return (
     <form ref={formRef} action={formAction} className="space-y-4 p-5">
       {state.error ? (
-        <p className="rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-400">{state.error}</p>
+        <Alert variant="error">
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
       ) : null}
       {state.ok ? (
-        <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400">
-          User created. Share the email and password with them.
-        </p>
+        <Alert variant="success">
+          <AlertDescription>User created. Share the email and password with them.</AlertDescription>
+        </Alert>
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -44,15 +54,15 @@ export function AddUserForm() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="role">Role</Label>
-          <select
-            id="role"
-            name="role"
-            defaultValue="member"
-            className="flex h-10 w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
-          >
-            <option value="member">member</option>
-            <option value="admin">admin</option>
-          </select>
+          <Select name="role" defaultValue="member">
+            <SelectTrigger id="role" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="member">member</SelectItem>
+              <SelectItem value="admin">admin</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

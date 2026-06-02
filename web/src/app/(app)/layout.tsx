@@ -27,10 +27,10 @@ export default async function AppLayout({
   const email = user.email ?? "";
 
   return (
-    <div className="min-h-screen bg-canvas text-fg">
+    <div className="min-h-screen bg-background text-foreground">
       <Sidebar role={role} name={name} email={email} />
       <div className="flex min-h-screen flex-col md:pl-64">
-        <Topbar name={name} role={role} />
+        <Topbar name={name} email={email} role={role} />
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       </div>
     </div>

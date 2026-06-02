@@ -56,7 +56,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(Icons.inventory_2_outlined, size: 48),
+                    Center(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.asset(
+                          'assets/verlet_icon.png',
+                          width: 56,
+                          height: 56,
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Text('Inventory',
                         textAlign: TextAlign.center,

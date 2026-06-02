@@ -1,19 +1,28 @@
 import { Suspense } from "react";
 import { SearchBox } from "./search-box";
 import { ScanButton } from "./scan-button";
+import { UserMenu } from "./user-menu";
+import { VerletLogo } from "@/components/ui/verlet-logo";
+import { Badge } from "@/components/ui/badge";
 
 interface TopbarProps {
   name: string;
+  email: string;
   role: "member" | "admin";
 }
 
-export function Topbar({ name, role }: TopbarProps) {
+export function Topbar({ name, email, role }: TopbarProps) {
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-line bg-canvas/80 px-4 backdrop-blur sm:px-6 lg:px-8">
-      <span className="text-sm font-medium text-muted md:hidden">Inventory</span>
+    <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-border bg-background/80 px-4 backdrop-blur sm:px-6 lg:px-8">
+      <span className="flex items-center gap-2 text-sm font-medium text-foreground md:hidden">
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-highlight text-highlight-foreground">
+          <VerletLogo className="h-4 w-4" />
+        </span>
+        Inventory
+      </span>
 
       <div className="hidden flex-1 items-center sm:flex">
-        <Suspense fallback={<div className="h-9 w-full max-w-sm rounded-lg border border-line bg-surface" />}>
+        <Suspense fallback={<div className="h-9 w-full max-w-sm rounded-lg border border-line bg-card" />}>
           <SearchBox />
         </Suspense>
       </div>
@@ -21,11 +30,11 @@ export function Topbar({ name, role }: TopbarProps) {
       <div className="ml-auto flex items-center gap-3">
         <ScanButton />
         {role === "admin" ? (
-          <span className="rounded-full bg-pink-500/15 px-2.5 py-1 text-xs font-medium text-pink-400">
+          <Badge variant="chip" className="bg-highlight-soft text-highlight">
             Admin
-          </span>
+          </Badge>
         ) : null}
-        <span className="hidden text-sm text-muted sm:inline">{name}</span>
+        <UserMenu name={name} email={email} />
       </div>
     </header>
   );

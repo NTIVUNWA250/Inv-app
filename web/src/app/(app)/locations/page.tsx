@@ -44,8 +44,8 @@ export default async function LocationsPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-fg">Locations</h1>
-        <p className="mt-1 text-sm text-muted">
+        <h1 className="font-serif text-[1.75rem] text-foreground">Locations</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Open a location to see the items stored in it.
         </p>
       </div>
@@ -66,7 +66,7 @@ export default async function LocationsPage() {
 
       {locations.length === 0 ? (
         <Panel title="Locations">
-          <p className="px-5 py-10 text-center text-sm text-muted">No locations yet.</p>
+          <p className="px-5 py-10 text-center text-sm text-muted-foreground">No locations yet.</p>
         </Panel>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -76,18 +76,18 @@ export default async function LocationsPage() {
               <Link
                 key={loc.id}
                 href={`/locations/${loc.id}`}
-                className="group flex items-center gap-4 rounded-xl border border-line bg-surface p-5 transition-colors hover:border-pink-500/40"
+                className="group flex items-center gap-4 rounded-xl border border-line bg-card p-5 transition-colors hover:border-highlight/40"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-2 text-muted">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-2 text-muted-foreground">
                   <Warehouse className="h-5 w-5" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium text-fg">{loc.name}</p>
-                  <p className="text-xs text-muted">
+                  <p className="text-xs text-muted-foreground">
                     {s?.items.size ?? 0} items · {s?.units ?? 0} units
                   </p>
                 </div>
-                <ChevronRight className="h-4 w-4 text-muted transition-transform group-hover:translate-x-0.5" />
+                <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
               </Link>
             );
           })}

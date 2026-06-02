@@ -22,7 +22,7 @@ export function EditProfileForm({
   return (
     <form action={formAction} className="space-y-4 p-5">
       {state.error ? (
-        <p className="rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-400">{state.error}</p>
+        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{state.error}</p>
       ) : null}
       {state.ok ? (
         <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400">

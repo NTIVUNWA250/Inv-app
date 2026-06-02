@@ -2,8 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { QrCode, X } from "lucide-react";
+import { QrCode } from "lucide-react";
 import type { Html5Qrcode } from "html5-qrcode";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const PREFIX = "inventory:item:";
 
@@ -82,46 +88,30 @@ export function ScanButton() {
         onClick={() => setOpen(true)}
         aria-label="Scan item QR"
         title="Scan item QR"
-        className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-fg"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-hover hover:text-foreground"
       >
         <QrCode className="h-5 w-5" />
       </button>
 
-      {open ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setOpen(false)}
-        >
-          <div
-            className="w-full max-w-sm rounded-xl border border-line bg-surface shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-line px-5 py-4">
-              <h2 className="text-sm font-semibold text-fg">Scan item QR</h2>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label="Close"
-                className="text-muted transition-colors hover:text-fg"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="p-5">
-              <div id="qr-reader" className="overflow-hidden rounded-lg [&_video]:rounded-lg" />
-              {error ? (
-                <p className="mt-3 rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-400">
-                  {error} Allow camera access, or use a device that has a camera.
-                </p>
-              ) : (
-                <p className="mt-3 text-center text-xs text-muted">
-                  Point your camera at an item&apos;s QR code.
-                </p>
-              )}
-            </div>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Scan item QR</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            <div id="qr-reader" className="overflow-hidden rounded-lg [&_video]:rounded-lg" />
+            {error ? (
+              <p className="mt-3 rounded-md bg-destructive-soft px-3 py-2 text-sm text-destructive">
+                {error} Allow camera access, or use a device that has a camera.
+              </p>
+            ) : (
+              <p className="mt-3 text-center text-xs text-muted-foreground">
+                Point your camera at an item&apos;s QR code.
+              </p>
+            )}
           </div>
-        </div>
-      ) : null}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

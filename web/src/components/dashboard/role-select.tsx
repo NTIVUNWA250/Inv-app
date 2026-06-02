@@ -1,6 +1,13 @@
 "use client";
 
 import { useTransition } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { changeRole } from "@/app/(app)/admin/actions";
 
 export function RoleSelect({
@@ -18,18 +25,17 @@ export function RoleSelect({
   // locking yourself out of the admin area.
   if (isSelf) {
     return (
-      <span className="rounded-full bg-pink-500/15 px-2.5 py-0.5 text-xs font-medium text-pink-400">
+      <span className="rounded-full bg-highlight/15 px-2.5 py-0.5 text-xs font-medium text-highlight">
         {role} (you)
       </span>
     );
   }
 
-  function onChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const next = e.target.value as "member" | "admin";
+  function onChange(next: string) {
     if (next === role) return;
     startTransition(async () => {
       try {
-        await changeRole(id, next);
+        await changeRole(id, next as "member" | "admin");
       } catch (err) {
         window.alert(err instanceof Error ? err.message : "Could not change role.");
       }
@@ -37,15 +43,14 @@ export function RoleSelect({
   }
 
   return (
-    <select
-      key={role}
-      defaultValue={role}
-      onChange={onChange}
-      disabled={pending}
-      className="h-8 rounded-md border border-line bg-surface px-2 text-xs text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:opacity-50"
-    >
-      <option value="member">member</option>
-      <option value="admin">admin</option>
-    </select>
+    <Select key={role} defaultValue={role} onValueChange={onChange} disabled={pending}>
+      <SelectTrigger className="h-8 w-[130px] text-[12px]">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="member">member</SelectItem>
+        <SelectItem value="admin">admin</SelectItem>
+      </SelectContent>
+    </Select>
   );
 }

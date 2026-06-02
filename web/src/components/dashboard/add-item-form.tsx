@@ -6,6 +6,14 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { addItem, type AddItemState } from "@/app/(app)/admin/actions";
 import type { Location } from "@/lib/api/types";
 
@@ -21,12 +29,14 @@ export function AddItemForm({ locations }: { locations: Location[] }) {
   return (
     <form ref={formRef} action={formAction} className="space-y-4 p-5">
       {state.error ? (
-        <p className="rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-400">{state.error}</p>
+        <Alert variant="error">
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
       ) : null}
       {state.ok ? (
-        <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400">
-          Item added.
-        </p>
+        <Alert variant="success">
+          <AlertDescription>Item added.</AlertDescription>
+        </Alert>
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -48,23 +58,18 @@ export function AddItemForm({ locations }: { locations: Location[] }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="location_id">Location</Label>
-          <select
-            id="location_id"
-            name="location_id"
-            required
-            disabled={noLocations}
-            defaultValue=""
-            className="flex h-10 w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:opacity-50"
-          >
-            <option value="" disabled>
-              Select a location…
-            </option>
-            {locations.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {loc.name}
-              </option>
-            ))}
-          </select>
+          <Select name="location_id" required disabled={noLocations}>
+            <SelectTrigger id="location_id" className="w-full">
+              <SelectValue placeholder="Select a location…" />
+            </SelectTrigger>
+            <SelectContent>
+              {locations.map((loc) => (
+                <SelectItem key={loc.id} value={loc.id}>
+                  {loc.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="quantity">Quantity</Label>
@@ -80,18 +85,20 @@ export function AddItemForm({ locations }: { locations: Location[] }) {
         </div>
       </div>
 
-      <p className="text-xs text-muted">
+      <p className="text-xs text-muted-foreground">
         Every item must be assigned to a location with a starting quantity.
       </p>
 
       {noLocations ? (
-        <p className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
-          No locations exist yet. Create one on the{" "}
-          <Link href="/locations" className="font-medium underline">
-            Locations
-          </Link>{" "}
-          page before adding items.
-        </p>
+        <Alert variant="warning">
+          <AlertDescription>
+            No locations exist yet. Create one on the{" "}
+            <Link href="/locations" className="font-medium underline">
+              Locations
+            </Link>{" "}
+            page before adding items.
+          </AlertDescription>
+        </Alert>
       ) : null}
 
       <Button type="submit" disabled={pending || noLocations}>

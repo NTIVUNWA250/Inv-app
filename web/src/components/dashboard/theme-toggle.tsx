@@ -53,19 +53,21 @@ export function ThemeToggle() {
   }
 
   return (
-    <div className="inline-flex rounded-lg border border-line bg-surface p-1">
+    <div className="inline-flex h-9 items-center rounded-[10px] bg-muted p-[3px]">
       {OPTIONS.map(({ value, label, icon: Icon }) => (
         <button
           key={value}
           type="button"
           onClick={() => choose(value)}
           className={cn(
-            "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-            theme === value ? "bg-surface-2 text-fg" : "text-muted hover:text-fg",
+            "flex h-full items-center gap-1.5 rounded-[7px] px-3 text-[12px] font-medium transition-colors",
+            theme === value
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
           )}
           aria-pressed={theme === value}
         >
-          <Icon className="h-4 w-4" />
+          <Icon className="h-3.5 w-3.5" />
           {label}
         </button>
       ))}

@@ -14,21 +14,25 @@ export function StatCard({
   hint?: string;
 }) {
   return (
-    <div className="rounded-xl border border-line bg-surface p-5">
+    <div className="rounded-xl border border-border bg-card p-5">
       <div className="flex items-center justify-between">
-        <span className="text-sm text-muted">{label}</span>
-        <Icon className="h-4 w-4 text-muted" />
+        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          {label}
+        </span>
+        <Icon className="h-4 w-4 text-highlight" />
       </div>
-      <p className="mt-2 text-3xl font-semibold tracking-tight text-fg">{value}</p>
-      {hint ? <p className="mt-1 text-xs text-muted">{hint}</p> : null}
+      <p className="mt-2 font-mono text-[1.75rem] font-light leading-none text-foreground">
+        {value}
+      </p>
+      {hint ? <p className="mt-1.5 text-[11px] text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }
 
 const STATUS_STYLES: Record<StockStatus, { label: string; className: string }> = {
-  out: { label: "Out of stock", className: "bg-red-500/15 text-red-400" },
-  low: { label: "Low", className: "bg-amber-500/15 text-amber-400" },
-  ok: { label: "In stock", className: "bg-emerald-500/15 text-emerald-400" },
+  out: { label: "Out of stock", className: "bg-destructive-soft text-destructive" },
+  low: { label: "Low", className: "bg-warning-soft text-warning" },
+  ok: { label: "In stock", className: "bg-success-soft text-success" },
 };
 
 export function StatusBadge({ quantity, capacity }: { quantity: number; capacity?: number }) {
@@ -53,9 +57,9 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <section className={cn("rounded-xl border border-line bg-surface", className)}>
-      <div className="flex items-center justify-between border-b border-line px-5 py-4">
-        <h2 className="text-sm font-semibold text-fg">{title}</h2>
+    <section className={cn("rounded-xl border border-border bg-card", className)}>
+      <div className="flex items-center justify-between border-b border-border px-5 py-4">
+        <h2 className="font-serif text-base text-foreground">{title}</h2>
         {action}
       </div>
       {children}

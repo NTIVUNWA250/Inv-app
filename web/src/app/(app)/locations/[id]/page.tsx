@@ -42,7 +42,7 @@ export default async function LocationDetailPage({
     <div className="mx-auto max-w-4xl space-y-6">
       <Link
         href="/locations"
-        className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-fg"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" />
         All locations
@@ -50,8 +50,8 @@ export default async function LocationDetailPage({
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-fg">{location.name}</h1>
-          <p className="mt-1 text-sm text-muted">
+          <h1 className="font-serif text-[1.75rem] text-foreground">{location.name}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             {rows.length} item{rows.length === 1 ? "" : "s"} · {totalUnits} units
           </p>
         </div>
@@ -62,7 +62,7 @@ export default async function LocationDetailPage({
 
       <Panel title="Items here">
         {rows.length === 0 ? (
-          <p className="px-5 py-10 text-center text-sm text-muted">
+          <p className="px-5 py-10 text-center text-sm text-muted-foreground">
             No items stored in this location yet.
           </p>
         ) : (
@@ -77,12 +77,12 @@ export default async function LocationDetailPage({
                     <p className="truncate text-sm font-medium text-fg">
                       {row.items?.name ?? row.item_id}
                     </p>
-                    <p className="truncate text-xs text-muted">{row.items?.sku ?? "No SKU"}</p>
+                    <p className="truncate text-xs text-muted-foreground">{row.items?.sku ?? "No SKU"}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-sm tabular-nums text-muted">{row.quantity}</span>
+                    <span className="text-sm tabular-nums text-muted-foreground">{row.quantity}</span>
                     <StatusBadge quantity={row.quantity} />
-                    <ChevronRight className="h-4 w-4 text-muted" />
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </div>
                 </Link>
               </li>

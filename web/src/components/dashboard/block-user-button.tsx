@@ -36,8 +36,8 @@ export function BlockUserButton({
       title={blocked ? "Unblock user" : "Block user"}
       className={
         blocked
-          ? "inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-emerald-500/10 hover:text-emerald-400 disabled:opacity-50"
-          : "inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-amber-500/10 hover:text-amber-400 disabled:opacity-50"
+          ? "inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-emerald-500/10 hover:text-emerald-400 disabled:opacity-50"
+          : "inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-amber-500/10 hover:text-amber-400 disabled:opacity-50"
       }
     >
       {blocked ? <CircleCheck className="h-4 w-4" /> : <Ban className="h-4 w-4" />}

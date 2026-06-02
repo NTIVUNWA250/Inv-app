@@ -26,7 +26,7 @@ export function AddLocationForm() {
           {pending ? "Adding…" : "Add"}
         </Button>
       </div>
-      {state.error ? <p className="text-sm text-red-400">{state.error}</p> : null}
+      {state.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
     </form>
   );
 }

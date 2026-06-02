@@ -40,7 +40,7 @@ export function ItemQrCard({
       <div ref={wrapRef} className="rounded-lg bg-white p-3">
         <QRCodeCanvas value={value} size={180} marginSize={2} />
       </div>
-      <p className="text-center text-xs text-muted">Scan to open this item in the app.</p>
+      <p className="text-center text-xs text-muted-foreground">Scan to open this item in the app.</p>
       <Button type="button" variant="outline" onClick={download}>
         <Download className="h-4 w-4" />
         Download QR

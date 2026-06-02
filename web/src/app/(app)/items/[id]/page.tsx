@@ -6,6 +6,14 @@ import { Panel, StatusBadge } from "@/components/dashboard/widgets";
 import { MovementForm } from "@/components/dashboard/movement-form";
 import { DeleteItemButton } from "@/components/dashboard/delete-item-button";
 import { ItemQrCard } from "@/components/dashboard/item-qr-card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type { ApiUser, Profile, Item, Location, Movement, StockLevel } from "@/lib/api/types";
 
 export default async function ItemDetailPage({
@@ -48,7 +56,7 @@ export default async function ItemDetailPage({
     <div className="mx-auto max-w-5xl space-y-6">
       <Link
         href="/"
-        className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-fg"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-fg"
       >
         <ArrowLeft className="h-4 w-4" />
         Back
@@ -56,8 +64,8 @@ export default async function ItemDetailPage({
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-fg">{item.name}</h1>
-          <p className="mt-1 text-sm text-muted">
+          <h1 className="font-serif text-[1.75rem] text-foreground">{item.name}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             {item.sku ? `SKU ${item.sku}` : "No SKU"}
             {item.description ? ` · ${item.description}` : ""}
           </p>
@@ -65,7 +73,7 @@ export default async function ItemDetailPage({
         <div className="flex items-center gap-3">
           <div className="text-right">
             <p className="text-2xl font-semibold tabular-nums text-fg">{totalQty}</p>
-            <p className="text-xs text-muted">in stock</p>
+            <p className="text-xs text-muted-foreground">in stock</p>
           </div>
           <StatusBadge quantity={totalQty} capacity={totalCap} />
         </div>
@@ -74,7 +82,7 @@ export default async function ItemDetailPage({
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel title="Where it is">
           {stock.length === 0 ? (
-            <p className="px-5 py-8 text-center text-sm text-muted">Not stored anywhere yet.</p>
+            <p className="px-5 py-8 text-center text-sm text-muted-foreground">Not stored anywhere yet.</p>
           ) : (
             <ul className="divide-y divide-line">
               {stock.map((row) => (
@@ -83,12 +91,12 @@ export default async function ItemDetailPage({
                   className="flex items-center justify-between px-5 py-3"
                 >
                   <span className="flex items-center gap-2 text-sm text-fg">
-                    <MapPin className="h-4 w-4 text-muted" />
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
                     {row.locations?.name ?? row.location_id}
                   </span>
-                  <span className="text-sm tabular-nums text-muted">
+                  <span className="text-sm tabular-nums text-muted-foreground">
                     {row.quantity}
-                    {row.capacity ? <span className="text-muted/60"> / {row.capacity}</span> : null}
+                    {row.capacity ? <span className="text-muted-foreground/60"> / {row.capacity}</span> : null}
                   </span>
                 </li>
               ))}
@@ -108,46 +116,44 @@ export default async function ItemDetailPage({
       <Panel
         title="Activity"
         action={
-          <span className="inline-flex items-center gap-1.5 text-xs text-muted">
+          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <History className="h-3.5 w-3.5" />
             who took what, when
           </span>
         }
       >
         {movements.length === 0 ? (
-          <p className="px-5 py-10 text-center text-sm text-muted">No activity yet.</p>
+          <p className="px-5 py-10 text-center text-sm text-muted-foreground">No activity yet.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="text-xs uppercase tracking-wide text-muted">
-                <tr className="border-b border-line">
-                  <th className="px-5 py-3 font-medium">Person</th>
-                  <th className="px-5 py-3 font-medium">Action</th>
-                  <th className="px-5 py-3 font-medium">Location</th>
-                  <th className="px-5 py-3 font-medium">When</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {movements.map((m) => (
-                  <tr key={m.id} className="hover:bg-surface-2/40">
-                    <td className="px-5 py-3 text-fg">{nameById.get(m.user_id) || "Unknown"}</td>
-                    <td className="px-5 py-3">
-                      {m.delta < 0 ? (
-                        <span className="font-medium text-amber-400">Took {Math.abs(m.delta)}</span>
-                      ) : (
-                        <span className="font-medium text-emerald-400">Added {m.delta}</span>
-                      )}
-                      {m.note ? <span className="text-muted"> · {m.note}</span> : null}
-                    </td>
-                    <td className="px-5 py-3 text-muted">{m.locations?.name ?? "—"}</td>
-                    <td className="px-5 py-3 text-muted">
-                      {new Date(m.created_at).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="px-5">Person</TableHead>
+                <TableHead className="px-5">Action</TableHead>
+                <TableHead className="px-5">Location</TableHead>
+                <TableHead className="px-5">When</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {movements.map((m) => (
+                <TableRow key={m.id}>
+                  <TableCell className="px-5 text-foreground">{nameById.get(m.user_id) || "Unknown"}</TableCell>
+                  <TableCell className="px-5">
+                    {m.delta < 0 ? (
+                      <span className="font-medium text-warning">Took {Math.abs(m.delta)}</span>
+                    ) : (
+                      <span className="font-medium text-success">Added {m.delta}</span>
+                    )}
+                    {m.note ? <span className="text-muted-foreground"> · {m.note}</span> : null}
+                  </TableCell>
+                  <TableCell className="px-5 text-muted-foreground">{m.locations?.name ?? "—"}</TableCell>
+                  <TableCell className="px-5 text-muted-foreground">
+                    {new Date(m.created_at).toLocaleString()}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
       </Panel>
 
@@ -156,7 +162,7 @@ export default async function ItemDetailPage({
           <div className="flex items-center justify-between px-5 py-5">
             <div>
               <p className="text-sm font-medium text-fg">Delete this item</p>
-              <p className="text-sm text-muted">Removes it from the catalog and all its stock.</p>
+              <p className="text-sm text-muted-foreground">Removes it from the catalog and all its stock.</p>
             </div>
             <DeleteItemButton id={item.id} name={item.name} />
           </div>

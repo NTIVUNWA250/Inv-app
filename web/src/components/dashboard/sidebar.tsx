@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Warehouse, Boxes, Users, Settings, Package } from "lucide-react";
+import { Home, Warehouse, Boxes, Users, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { VerletLogo } from "@/components/ui/verlet-logo";
 
 interface SidebarProps {
   role: "member" | "admin";
@@ -28,10 +29,10 @@ export function Sidebar({ role, name, email }: SidebarProps) {
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-canvas md:flex">
       <div className="flex items-center gap-2 px-5 py-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-pink-600 text-white">
-          <Package className="h-5 w-5" />
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-highlight text-highlight-foreground">
+          <VerletLogo className="h-5 w-5" />
         </div>
-        <span className="text-base font-semibold text-fg">Inventory</span>
+        <span className="text-base font-semibold text-foreground">Inventory</span>
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-2">
@@ -45,7 +46,7 @@ export function Sidebar({ role, name, email }: SidebarProps) {
                 "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                 active
                   ? "bg-surface-2 text-fg"
-                  : "text-muted hover:bg-surface hover:text-fg",
+                  : "text-muted-foreground hover:bg-card hover:text-fg",
               )}
             >
               <Icon className="h-4 w-4" />
@@ -61,17 +62,17 @@ export function Sidebar({ role, name, email }: SidebarProps) {
           href="/settings"
           className={cn(
             "flex items-center gap-3 rounded-lg px-2 py-2 transition-colors",
-            settingsActive ? "bg-surface-2" : "hover:bg-surface",
+            settingsActive ? "bg-surface-2" : "hover:bg-card",
           )}
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-sm font-semibold text-emerald-400 ring-2 ring-emerald-500/40">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-highlight-soft text-sm font-semibold text-highlight ring-2 ring-highlight/30">
             {initials(name)}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-fg">{name}</p>
-            <p className="truncate text-xs text-muted">{email}</p>
+            <p className="truncate text-xs text-muted-foreground">{email}</p>
           </div>
-          <Settings className="h-4 w-4 shrink-0 text-muted" />
+          <Settings className="h-4 w-4 shrink-0 text-muted-foreground" />
         </Link>
       </div>
     </aside>

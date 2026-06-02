@@ -24,7 +24,7 @@ export function RemoveItemButton({ id, name }: { id: string; name: string }) {
       onClick={onClick}
       disabled={pending}
       aria-label={`Remove ${name}`}
-      className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"
+      className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
     >
       <Trash2 className="h-4 w-4" />
     </button>

@@ -1,61 +1,165 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-/// Brand accent (matches the web app's pink) used as the Material seed.
-const Color kAccent = Color(0xFFDB2777);
+/// Verlet highlight (pink) — the primary accent. Lighter in dark mode.
+const Color kAccent = Color(0xFFD64D7A);
+const Color _highlightDark = Color(0xFFE06090);
 
-const Color _darkCanvas = Color(0xFF09090B);
-const Color _darkSurface = Color(0xFF18181B);
-const Color _lightCanvas = Color(0xFFF7F7F8);
+// Surfaces & text (Verlet tokens). Mobile uses opaque surfaces.
+const Color _bgLight = Color(0xFFF4F4F6);
+const Color _cardLight = Color(0xFFFFFFFF);
+const Color _fgLight = Color(0xFF1C1C1E);
+const Color _mutedLight = Color(0xFF8E8E93);
+const Color _borderLight = Color(0x14000000); // ~8% black
+
+const Color _bgDark = Color(0xFF0A0A0C);
+const Color _cardDark = Color(0xFF16161A);
+const Color _fgDark = Color(0xEBFFFFFF); // white @ 92%
+const Color _mutedDark = Color(0x80FFFFFF); // white @ 50%
+const Color _borderDark = Color(0x1AFFFFFF); // ~10% white
+
+// Status colors (Verlet).
+const Color _destructive = Color(0xFFFF3B30);
+const Color _warning = Color(0xFFFF9F0A);
+const Color _success = Color(0xFF34C759);
 
 ThemeData buildTheme(Brightness brightness) {
   final isDark = brightness == Brightness.dark;
+  final highlight = isDark ? _highlightDark : kAccent;
+  final bg = isDark ? _bgDark : _bgLight;
+  final card = isDark ? _cardDark : _cardLight;
+  final fg = isDark ? _fgDark : _fgLight;
+  final muted = isDark ? _mutedDark : _mutedLight;
+  final border = isDark ? _borderDark : _borderLight;
+
   final scheme = ColorScheme.fromSeed(
-    seedColor: kAccent,
+    seedColor: highlight,
     brightness: brightness,
   ).copyWith(
-    surface: isDark ? _darkSurface : Colors.white,
+    primary: highlight,
+    onPrimary: Colors.white,
+    secondary: highlight,
+    onSecondary: Colors.white,
+    surface: card,
+    onSurface: fg,
+    onSurfaceVariant: muted,
+    outline: border,
+    outlineVariant: border,
+    error: _destructive,
+    onError: Colors.white,
   );
+
+  // Typography: DM Sans body, DM Serif Display headings, JetBrains Mono numbers.
+  final base = (isDark ? ThemeData.dark() : ThemeData.light()).textTheme;
+  final sans = GoogleFonts.dmSansTextTheme(base);
+  final textTheme = sans
+      .copyWith(
+        displayLarge: GoogleFonts.dmSerifDisplay(textStyle: sans.displayLarge),
+        displayMedium: GoogleFonts.dmSerifDisplay(textStyle: sans.displayMedium),
+        displaySmall: GoogleFonts.dmSerifDisplay(textStyle: sans.displaySmall),
+        headlineLarge: GoogleFonts.dmSerifDisplay(textStyle: sans.headlineLarge),
+        headlineMedium: GoogleFonts.dmSerifDisplay(textStyle: sans.headlineMedium),
+        headlineSmall: GoogleFonts.dmSerifDisplay(textStyle: sans.headlineSmall),
+        titleLarge: GoogleFonts.dmSerifDisplay(textStyle: sans.titleLarge),
+      )
+      .apply(bodyColor: fg, displayColor: fg);
 
   return ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
-    scaffoldBackgroundColor: isDark ? _darkCanvas : _lightCanvas,
+    scaffoldBackgroundColor: bg,
+    textTheme: textTheme,
     appBarTheme: AppBarTheme(
-      backgroundColor: isDark ? _darkCanvas : _lightCanvas,
+      backgroundColor: bg,
+      surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: false,
+      foregroundColor: fg,
+      titleTextStyle: GoogleFonts.dmSerifDisplay(fontSize: 22, color: fg),
     ),
     cardTheme: CardThemeData(
       elevation: 0,
-      color: isDark ? _darkSurface : Colors.white,
+      color: card,
+      surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7),
-        ),
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: border),
       ),
       margin: EdgeInsets.zero,
     ),
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: isDark ? _darkSurface : Colors.white,
-      indicatorColor: kAccent.withValues(alpha: 0.18),
+      backgroundColor: card,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      indicatorColor: highlight.withValues(alpha: 0.12),
       labelTextStyle: WidgetStatePropertyAll(
-        TextStyle(fontSize: 12, color: scheme.onSurface),
+        GoogleFonts.dmSans(fontSize: 12, color: fg),
       ),
+      iconTheme: WidgetStateProperty.resolveWith((states) {
+        final selected = states.contains(WidgetState.selected);
+        return IconThemeData(color: selected ? highlight : muted);
+      }),
+    ),
+    dividerTheme: DividerThemeData(color: border, thickness: 1, space: 1),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: highlight,
+        foregroundColor: Colors.white,
+        textStyle: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w500),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: highlight,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        textStyle: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.w500),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(foregroundColor: highlight),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: isDark ? _darkSurface : Colors.white,
+      fillColor: card,
+      hintStyle: TextStyle(color: muted),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: highlight, width: 1.5),
+      ),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
     ),
   );
 }
 
+/// Verlet typography helpers for screens (serif headings, mono numbers/metrics).
+class VerletText {
+  static TextStyle serif({double? fontSize, Color? color, FontWeight? fontWeight}) =>
+      GoogleFonts.dmSerifDisplay(
+        fontSize: fontSize,
+        color: color,
+        fontWeight: fontWeight,
+      );
+
+  static TextStyle mono({double? fontSize, Color? color, FontWeight? fontWeight}) =>
+      GoogleFonts.jetBrainsMono(
+        fontSize: fontSize,
+        color: color,
+        fontWeight: fontWeight ?? FontWeight.w300,
+      );
+}
+
 /// Colors for stock-status chips, used across screens.
 class StatusColors {
-  static Color bg(BuildContext context, Color base) => base.withValues(alpha: 0.15);
-  static const Color out = Color(0xFFEF4444); // red
-  static const Color low = Color(0xFFF59E0B); // amber
-  static const Color ok = Color(0xFF10B981); // emerald
+  static Color bg(BuildContext context, Color base) => base.withValues(alpha: 0.12);
+  static const Color out = _destructive; // red
+  static const Color low = _warning; // amber
+  static const Color ok = _success; // green
 }
