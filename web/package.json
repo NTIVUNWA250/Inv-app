@@ -4,8 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:test": "API_URL=http://localhost:4001 next dev -p 3001",
+    "dev:prod": "API_URL=http://localhost:4000 next dev -p 3000",
     "build": "next build",
     "start": "next start",
+    "start:test": "API_URL=http://localhost:4001 next start -p 3001",
+    "start:prod": "API_URL=http://localhost:4000 next start -p 3000",
     "lint": "eslint"
   },
   "dependencies": {

@@ -7,8 +7,12 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "dev:test": "APP_ENV=test tsx watch src/index.ts",
+    "dev:prod": "APP_ENV=production tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
+    "start:test": "APP_ENV=test node dist/index.js",
+    "start:prod": "APP_ENV=production node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

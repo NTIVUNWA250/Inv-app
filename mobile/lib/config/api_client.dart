@@ -48,7 +48,14 @@ class ApiClient {
   String get role => _role;
   bool get isAdmin => _role == 'admin';
 
-  String get _baseUrl => dotenv.env['API_URL'] ?? 'http://10.0.2.2:4000';
+  /// Compile-time override, e.g. `--dart-define=API_URL=http://10.0.2.2:4001`
+  /// to point a build at the test environment. Falls back to the bundled
+  /// `.env`, then the emulator->host default (prod API on :4000).
+  static const _dartDefineApiUrl = String.fromEnvironment('API_URL');
+
+  String get _baseUrl => _dartDefineApiUrl.isNotEmpty
+      ? _dartDefineApiUrl
+      : (dotenv.env['API_URL'] ?? 'http://10.0.2.2:4000');
 
   Uri _uri(String path) => Uri.parse('$_baseUrl$path');
 
