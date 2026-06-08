@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": "20.x"
+    "node": "22.x"
   },
   "description": "Shared Express API for the Inventory web + mobile apps. Verifies Supabase JWTs and runs all queries through user-scoped clients so Postgres RLS stays the source of truth.",
   "type": "module",
