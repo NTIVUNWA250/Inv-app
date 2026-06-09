@@ -64,7 +64,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     await f;
   }
 
-  Future<void> _move(bool checkout) async {
+  Future<void> _move(String action) async {
     final locationId = _selectedLocationId;
     if (locationId == null) {
       _snack('Choose a location.');
@@ -76,11 +76,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     }
     setState(() => _working = true);
     try {
-      await _repo.recordMovement(
+      await _repo.moveStock(
         itemId: widget.itemId,
         locationId: locationId,
         quantity: _quantity,
-        checkout: checkout,
+        action: action,
       );
       await _refresh();
     } catch (e) {
@@ -88,6 +88,33 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     } finally {
       if (mounted) setState(() => _working = false);
     }
+  }
+
+  Future<void> _undo(Movement m) async {
+    try {
+      await _repo.undoMovement(m.id);
+      await _refresh();
+    } catch (e) {
+      _snack('$e');
+    }
+  }
+
+  Future<void> _toggleFinishable(Item item) async {
+    try {
+      await _repo.setFinishable(item.id, !item.finishable);
+      await _refresh();
+    } catch (e) {
+      _snack('$e');
+    }
+  }
+
+  Future<void> _editStock(List<StockLevel> stock) async {
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _EditStockSheet(itemId: widget.itemId, stock: stock),
+    );
+    if (saved == true) await _refresh();
   }
 
   Future<void> _deleteItem(Item item) async {
@@ -140,6 +167,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
             final muted = Theme.of(context).colorScheme.onSurfaceVariant;
             final nameById = {for (final p in data.profiles) p.id: p.fullName};
             final total = data.stock.fold<int>(0, (s, r) => s + r.quantity);
+            final reversedIds = {
+              for (final m in data.movements)
+                if (m.reversalOf != null) m.reversalOf!,
+            };
+            final myId = ApiClient.instance.currentUserId;
 
             return ListView(
               padding: const EdgeInsets.all(16),
@@ -199,7 +231,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                               ListTile(
                                 leading: const Icon(Icons.place_outlined),
                                 title: Text(s.locationName ?? s.locationId),
-                                trailing: Text('${s.quantity}'),
+                                trailing: Text(
+                                  s.capacity > 0 ? '${s.quantity} / ${s.capacity}' : '${s.quantity}',
+                                ),
                               ),
                           ],
                         ),
@@ -211,10 +245,13 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   selectedLocationId: _selectedLocationId,
                   quantity: _quantity,
                   working: _working,
+                  finishable: data.item.finishable,
                   onLocationChanged: (v) => setState(() => _selectedLocationId = v),
                   onQuantityChanged: (v) => setState(() => _quantity = v),
-                  onTake: () => _move(true),
-                  onReturn: () => _move(false),
+                  onTake: () => _move('take'),
+                  onReturn: () => _move('return'),
+                  onFinish: () => _move('finish'),
+                  onDestroy: () => _move('destroy'),
                 ),
                 const SizedBox(height: 16),
 
@@ -231,19 +268,21 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                           children: [
                             for (final m in data.movements)
                               ListTile(
-                                leading: Icon(
-                                  m.delta < 0 ? Icons.arrow_upward : Icons.arrow_downward,
-                                  color: m.delta < 0 ? StatusColors.low : StatusColors.ok,
-                                ),
+                                leading: Icon(_reasonIcon(m), color: _reasonColor(m)),
                                 title: Text(nameById[m.userId] ?? 'Unknown'),
                                 subtitle: Text(
-                                  '${m.delta < 0 ? 'Took ${-m.delta}' : 'Added ${m.delta}'}'
-                                  ' · ${m.locationName ?? '—'}',
+                                  '${_reasonLabel(m)} · ${m.locationName ?? '—'}'
+                                  ' · ${_formatDate(m.createdAt)}',
                                 ),
-                                trailing: Text(
-                                  _formatDate(m.createdAt),
-                                  style: TextStyle(fontSize: 12, color: muted),
-                                ),
+                                trailing: ((m.reason == 'finish' || m.reason == 'destroyed') &&
+                                        !reversedIds.contains(m.id) &&
+                                        (m.userId == myId || isAdmin))
+                                    ? TextButton.icon(
+                                        onPressed: () => _undo(m),
+                                        icon: const Icon(Icons.undo, size: 16),
+                                        label: const Text('Undo'),
+                                      )
+                                    : null,
                               ),
                           ],
                         ),
@@ -251,6 +290,22 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
                 if (isAdmin) ...[
                   const SizedBox(height: 16),
+                  SectionCard(
+                    title: 'Item settings',
+                    child: SwitchListTile(
+                      title: const Text('Finishable'),
+                      subtitle: const Text('Anyone can permanently use this item up.'),
+                      value: data.item.finishable,
+                      onChanged: _working ? null : (_) => _toggleFinishable(data.item),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: data.stock.isEmpty ? null : () => _editStock(data.stock),
+                    icon: const Icon(Icons.tune),
+                    label: const Text('Edit stock numbers'),
+                  ),
+                  const SizedBox(height: 12),
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(foregroundColor: StatusColors.out),
                     onPressed: () => _deleteItem(data.item),
@@ -279,25 +334,31 @@ class _MovementCard extends StatelessWidget {
     required this.selectedLocationId,
     required this.quantity,
     required this.working,
+    required this.finishable,
     required this.onLocationChanged,
     required this.onQuantityChanged,
     required this.onTake,
     required this.onReturn,
+    required this.onFinish,
+    required this.onDestroy,
   });
 
   final List<Location> locations;
   final String? selectedLocationId;
   final int quantity;
   final bool working;
+  final bool finishable;
   final ValueChanged<String?> onLocationChanged;
   final ValueChanged<int> onQuantityChanged;
   final VoidCallback onTake;
   final VoidCallback onReturn;
+  final VoidCallback onFinish;
+  final VoidCallback onDestroy;
 
   @override
   Widget build(BuildContext context) {
     return SectionCard(
-      title: 'Take or return stock',
+      title: 'Move stock',
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: locations.isEmpty
@@ -341,8 +402,229 @@ class _MovementCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      if (finishable) ...[
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: working ? null : onFinish,
+                            icon: const Icon(Icons.check_circle_outline),
+                            label: const Text('Finish'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(foregroundColor: StatusColors.out),
+                          onPressed: working ? null : onDestroy,
+                          icon: const Icon(Icons.delete_outline),
+                          label: const Text('Destroyed'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Finish and Destroyed permanently reduce the total; undo from the activity log.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                 ],
               ),
+      ),
+    );
+  }
+}
+
+String _reasonLabel(Movement m) {
+  final n = m.delta.abs();
+  switch (m.reason) {
+    case 'return':
+      return 'Returned $n';
+    case 'initial':
+      return 'Stocked $n';
+    case 'finish':
+      return 'Finished $n';
+    case 'destroyed':
+      return 'Destroyed $n';
+    case 'undo':
+      return 'Undid';
+    case 'adjust':
+      final parts = <String>[];
+      if (m.delta != 0) parts.add('qty ${m.delta > 0 ? '+' : ''}${m.delta}');
+      if (m.capacityDelta != 0) parts.add('total ${m.capacityDelta > 0 ? '+' : ''}${m.capacityDelta}');
+      return parts.isEmpty ? 'Adjusted' : 'Adjusted (${parts.join(', ')})';
+    case 'take':
+    default:
+      return m.delta < 0 ? 'Took $n' : 'Added $n';
+  }
+}
+
+IconData _reasonIcon(Movement m) {
+  switch (m.reason) {
+    case 'finish':
+      return Icons.check_circle_outline;
+    case 'destroyed':
+      return Icons.delete_outline;
+    case 'adjust':
+      return Icons.tune;
+    case 'undo':
+      return Icons.undo;
+    default:
+      return m.delta < 0 ? Icons.arrow_upward : Icons.arrow_downward;
+  }
+}
+
+Color _reasonColor(Movement m) {
+  switch (m.reason) {
+    case 'destroyed':
+      return StatusColors.out;
+    case 'finish':
+    case 'adjust':
+      return StatusColors.low;
+    case 'undo':
+      return StatusColors.ok;
+    default:
+      return m.delta < 0 ? StatusColors.low : StatusColors.ok;
+  }
+}
+
+/// Admin bottom sheet to set the current quantity and total at a location.
+class _EditStockSheet extends StatefulWidget {
+  const _EditStockSheet({required this.itemId, required this.stock});
+  final String itemId;
+  final List<StockLevel> stock;
+
+  @override
+  State<_EditStockSheet> createState() => _EditStockSheetState();
+}
+
+class _EditStockSheetState extends State<_EditStockSheet> {
+  final _repo = const InventoryRepository();
+  late String _locationId = widget.stock.first.locationId;
+  late final TextEditingController _qty;
+  late final TextEditingController _cap;
+  bool _saving = false;
+  String? _error;
+
+  StockLevel get _current =>
+      widget.stock.firstWhere((s) => s.locationId == _locationId);
+
+  @override
+  void initState() {
+    super.initState();
+    _qty = TextEditingController(text: '${_current.quantity}');
+    _cap = TextEditingController(text: '${_current.capacity}');
+  }
+
+  void _syncToLocation() {
+    _qty.text = '${_current.quantity}';
+    _cap.text = '${_current.capacity}';
+  }
+
+  @override
+  void dispose() {
+    _qty.dispose();
+    _cap.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final quantity = int.tryParse(_qty.text) ?? -1;
+    final capacity = int.tryParse(_cap.text) ?? -1;
+    if (quantity < 0 || capacity < 0) {
+      setState(() => _error = "Numbers can't be negative.");
+      return;
+    }
+    if (quantity > capacity) {
+      setState(() => _error = "Quantity can't exceed the total.");
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await _repo.adjustStock(
+        itemId: widget.itemId,
+        locationId: _locationId,
+        quantity: quantity,
+        capacity: capacity,
+      );
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      setState(() {
+        _saving = false;
+        _error = '$e';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Edit stock numbers', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: _locationId,
+            decoration: const InputDecoration(labelText: 'Location'),
+            items: [
+              for (final s in widget.stock)
+                DropdownMenuItem(value: s.locationId, child: Text(s.locationName ?? s.locationId)),
+            ],
+            onChanged: (v) {
+              if (v == null) return;
+              setState(() {
+                _locationId = v;
+                _syncToLocation();
+              });
+            },
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _qty,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Current quantity'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _cap,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Total'),
+                ),
+              ),
+            ],
+          ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(_error!, style: const TextStyle(color: StatusColors.out)),
+            ),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: _saving ? null : _save,
+            child: Text(_saving ? 'Saving…' : 'Save stock numbers'),
+          ),
+        ],
       ),
     );
   }

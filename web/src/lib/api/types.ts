@@ -27,8 +27,19 @@ export interface Item {
   sku: string | null;
   name: string;
   description: string | null;
+  /** When true, users can permanently "finish" (consume) this item. */
+  finishable: boolean;
   created_at: string;
 }
+
+export type MovementReason =
+  | "take"
+  | "return"
+  | "initial"
+  | "finish"
+  | "destroyed"
+  | "adjust"
+  | "undo";
 
 export interface Location {
   id: string;
@@ -53,6 +64,11 @@ export interface Movement {
   location_id: string;
   user_id: string;
   delta: number;
+  /** Change to the ceiling (negative for finish/destroyed, positive for undo). */
+  capacity_delta: number;
+  reason: MovementReason;
+  /** For an undo movement, the id of the movement it reverses. */
+  reversal_of: string | null;
   note: string | null;
   created_at: string;
   items?: { name: string; sku: string | null } | null;

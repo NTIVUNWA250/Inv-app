@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, CheckCircle2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,15 +12,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { recordMovement } from "@/app/(app)/items/[id]/actions";
+import { recordMovement, type StockAction } from "@/app/(app)/items/[id]/actions";
 import type { Location } from "@/lib/api/types";
 
 export function MovementForm({
   itemId,
   locations,
+  finishable = false,
 }: {
   itemId: string;
   locations: Location[];
+  finishable?: boolean;
 }) {
   const [locationId, setLocationId] = useState(locations[0]?.id ?? "");
   const [quantity, setQuantity] = useState(1);
@@ -35,14 +37,14 @@ export function MovementForm({
     );
   }
 
-  function submit(checkout: boolean) {
+  function submit(action: StockAction) {
     setError(null);
     if (!locationId) return setError("Choose a location.");
     if (!Number.isFinite(quantity) || quantity <= 0) {
       return setError("Enter a quantity of at least 1.");
     }
     startTransition(async () => {
-      const res = await recordMovement(itemId, locationId, quantity, checkout);
+      const res = await recordMovement(itemId, locationId, quantity, action);
       if (res?.error) setError(res.error);
     });
   }
@@ -80,7 +82,7 @@ export function MovementForm({
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <div className="flex flex-wrap gap-3">
-        <Button type="button" disabled={pending} onClick={() => submit(true)}>
+        <Button type="button" disabled={pending} onClick={() => submit("take")}>
           <ArrowUpFromLine className="h-4 w-4" />
           {pending ? "Working…" : "Take from stock"}
         </Button>
@@ -88,12 +90,37 @@ export function MovementForm({
           type="button"
           variant="outline"
           disabled={pending}
-          onClick={() => submit(false)}
+          onClick={() => submit("return")}
         >
           <ArrowDownToLine className="h-4 w-4" />
           Return to stock
         </Button>
+        {finishable ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={pending}
+            onClick={() => submit("finish")}
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            Finish
+          </Button>
+        ) : null}
+        <Button
+          type="button"
+          variant="outline"
+          disabled={pending}
+          onClick={() => submit("destroy")}
+          className="text-destructive hover:text-destructive"
+        >
+          <Trash2 className="h-4 w-4" />
+          Destroyed
+        </Button>
       </div>
+      <p className="text-xs text-muted-foreground">
+        Take/return move stock as usual. Finish and Destroyed permanently reduce
+        the total and can be undone from the activity log.
+      </p>
     </div>
   );
 }

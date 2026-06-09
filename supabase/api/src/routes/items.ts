@@ -11,6 +11,7 @@ const itemBody = z.object({
   sku: z.string().trim().min(1).nullable().optional(),
   name: z.string().trim().min(1),
   description: z.string().trim().nullable().optional(),
+  finishable: z.boolean().optional(),
 });
 
 const listQuery = z.object({

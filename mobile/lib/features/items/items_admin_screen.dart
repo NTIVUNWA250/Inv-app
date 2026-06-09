@@ -171,6 +171,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
   final _description = TextEditingController();
   late String _locationId = widget.locations.first.id;
   int _quantity = 1;
+  bool _finishable = false;
   bool _saving = false;
   String? _error;
 
@@ -203,6 +204,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
         description: _description.text.trim(),
         locationId: _locationId,
         quantity: _quantity,
+        finishable: _finishable,
       );
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -253,6 +255,14 @@ class _AddItemSheetState extends State<_AddItemSheet> {
             keyboardType: TextInputType.number,
             decoration: const InputDecoration(labelText: 'Initial quantity'),
             onChanged: (v) => _quantity = int.tryParse(v) ?? 0,
+          ),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Finishable'),
+            subtitle: const Text('Users can permanently use this item up.'),
+            value: _finishable,
+            onChanged: (v) => setState(() => _finishable = v),
           ),
           const SizedBox(height: 8),
           Text(
