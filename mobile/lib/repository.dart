@@ -49,19 +49,49 @@ class InventoryRepository {
     return data.map((e) => Movement.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  /// Check stock out (take) or in (return). The user is recorded as the actor.
-  Future<void> recordMovement({
+  /// Move stock. `action` is take | return | finish | destroy. take/return move
+  /// stock as usual; finish/destroy permanently reduce quantity AND the total.
+  /// The user is recorded as the actor.
+  Future<void> moveStock({
     required String itemId,
     required String locationId,
     required int quantity,
-    required bool checkout,
+    required String action,
   }) async {
-    await api.post(checkout ? '/movements/check-out' : '/movements/check-in', {
+    const endpoints = {
+      'take': '/movements/check-out',
+      'return': '/movements/check-in',
+      'finish': '/movements/finish',
+      'destroy': '/movements/destroy',
+    };
+    await api.post(endpoints[action]!, {
       'item_id': itemId,
       'location_id': locationId,
       'quantity': quantity,
     });
   }
+
+  /// Admin: set the current quantity and/or total (ceiling) at a location.
+  Future<void> adjustStock({
+    required String itemId,
+    required String locationId,
+    required int quantity,
+    required int capacity,
+  }) =>
+      api.post('/movements/adjust', {
+        'item_id': itemId,
+        'location_id': locationId,
+        'quantity': quantity,
+        'capacity': capacity,
+      });
+
+  /// Undo a finish/destroyed movement (own entry, or any as admin).
+  Future<void> undoMovement(String movementId) =>
+      api.post('/movements/$movementId/undo', const {});
+
+  /// Admin: toggle whether an item can be finished.
+  Future<void> setFinishable(String itemId, bool finishable) =>
+      api.patch('/items/$itemId', {'finishable': finishable});
 
   /// Create a catalog item and seed its initial stock at a location.
   Future<void> createItem({
@@ -70,17 +100,20 @@ class InventoryRepository {
     String? description,
     required String locationId,
     required int quantity,
+    bool finishable = false,
   }) async {
     final item = await api.post('/items', {
       'name': name,
       'sku': (sku != null && sku.isNotEmpty) ? sku : null,
       'description': (description != null && description.isNotEmpty) ? description : null,
+      'finishable': finishable,
     }) as Map<String, dynamic>;
 
     await api.post('/movements', {
       'item_id': item['id'],
       'location_id': locationId,
       'delta': quantity,
+      'reason': 'initial',
       'note': 'Initial stock',
     });
   }

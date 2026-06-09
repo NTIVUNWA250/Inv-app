@@ -21,6 +21,7 @@ export async function addItem(_prev: AddItemState, formData: FormData): Promise<
   const description = String(formData.get("description") ?? "").trim();
   const locationId = String(formData.get("location_id") ?? "").trim();
   const quantity = Number(String(formData.get("quantity") ?? "").trim());
+  const finishable = formData.get("finishable") != null;
 
   if (!name) return { error: "Name is required." };
   if (!locationId) return { error: "Choose a location for this item." };
@@ -33,12 +34,14 @@ export async function addItem(_prev: AddItemState, formData: FormData): Promise<
       name,
       sku: sku || null,
       description: description || null,
+      finishable,
     });
 
     await api.post("/movements", {
       item_id: item.id,
       location_id: locationId,
       delta: quantity,
+      reason: "initial",
       note: "Initial stock",
     });
   } catch (err) {

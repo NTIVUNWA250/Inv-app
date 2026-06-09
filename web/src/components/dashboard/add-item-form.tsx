@@ -55,6 +55,16 @@ export function AddItemForm({ locations }: { locations: Location[] }) {
         <Input id="description" name="description" placeholder="Optional description" />
       </div>
 
+      <label htmlFor="finishable" className="flex items-center gap-2 text-sm text-fg">
+        <input
+          id="finishable"
+          name="finishable"
+          type="checkbox"
+          className="h-4 w-4 rounded border-border accent-highlight"
+        />
+        Finishable — users can permanently use this item up
+      </label>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="location_id">Location</Label>

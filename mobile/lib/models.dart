@@ -10,18 +10,28 @@ StockStatus statusForQuantity(int quantity) {
 }
 
 class Item {
-  Item({required this.id, required this.name, this.sku, this.description});
+  Item({
+    required this.id,
+    required this.name,
+    this.sku,
+    this.description,
+    this.finishable = false,
+  });
 
   final String id;
   final String name;
   final String? sku;
   final String? description;
 
+  /// When true, users can permanently "finish" (consume) this item.
+  final bool finishable;
+
   factory Item.fromJson(Map<String, dynamic> json) => Item(
         id: json['id'] as String,
         name: json['name'] as String,
         sku: json['sku'] as String?,
         description: json['description'] as String?,
+        finishable: (json['finishable'] as bool?) ?? false,
       );
 }
 
@@ -42,6 +52,7 @@ class StockLevel {
     required this.itemId,
     required this.locationId,
     required this.quantity,
+    this.capacity = 0,
     this.itemName,
     this.itemSku,
     this.locationName,
@@ -50,6 +61,7 @@ class StockLevel {
   final String itemId;
   final String locationId;
   final int quantity;
+  final int capacity;
   final String? itemName;
   final String? itemSku;
   final String? locationName;
@@ -61,6 +73,7 @@ class StockLevel {
       itemId: json['item_id'] as String,
       locationId: json['location_id'] as String,
       quantity: (json['quantity'] as num).toInt(),
+      capacity: (json['capacity'] as num?)?.toInt() ?? 0,
       itemName: items?['name'] as String?,
       itemSku: items?['sku'] as String?,
       locationName: locations?['name'] as String?,
@@ -76,6 +89,9 @@ class Movement {
     required this.userId,
     required this.delta,
     required this.createdAt,
+    this.capacityDelta = 0,
+    this.reason = 'take',
+    this.reversalOf,
     this.note,
     this.locationName,
   });
@@ -85,6 +101,15 @@ class Movement {
   final String locationId;
   final String userId;
   final int delta;
+
+  /// Change to the ceiling (negative for finish/destroyed, positive for undo).
+  final int capacityDelta;
+
+  /// take | return | initial | finish | destroyed | adjust | undo
+  final String reason;
+
+  /// For an undo movement, the id of the movement it reverses.
+  final String? reversalOf;
   final DateTime createdAt;
   final String? note;
   final String? locationName;
@@ -97,6 +122,9 @@ class Movement {
       locationId: json['location_id'] as String,
       userId: json['user_id'] as String,
       delta: (json['delta'] as num).toInt(),
+      capacityDelta: (json['capacity_delta'] as num?)?.toInt() ?? 0,
+      reason: (json['reason'] as String?) ?? 'take',
+      reversalOf: json['reversal_of'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       note: json['note'] as String?,
       locationName: locations?['name'] as String?,
