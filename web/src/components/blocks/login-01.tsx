@@ -16,6 +16,8 @@ import { cn } from "@/lib/utils"
 
 interface Login01Props extends Omit<React.ComponentProps<"div">, "onSubmit"> {
   onSubmit?: (data: { email: string; password: string }) => void
+  /** Server action to bind to the form; takes precedence over `onSubmit`. */
+  action?: React.ComponentProps<"form">["action"]
   error?: string
   loading?: boolean
   forgotPasswordHref?: string
@@ -28,6 +30,7 @@ interface Login01Props extends Omit<React.ComponentProps<"div">, "onSubmit"> {
 
 function Login01({
   onSubmit,
+  action,
   error,
   loading = false,
   forgotPasswordHref,
@@ -55,12 +58,12 @@ function Login01({
     <div
       data-slot="login-01"
       className={cn(
-        "fixed inset-0 flex items-center justify-center bg-background",
+        "fixed inset-0 flex items-center justify-center overflow-y-auto bg-background p-4",
         className
       )}
       {...props}
     >
-      <div className="relative w-full max-w-sm px-4">
+      <div className="relative my-auto w-full max-w-sm">
         {logo && (
           <div className="absolute bottom-full left-0 right-0 mb-6 flex items-center justify-center">
             {logo}
@@ -73,7 +76,10 @@ function Login01({
             <CardDescription>{description}</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <form
+              {...(action ? { action } : { onSubmit: handleSubmit })}
+              className="flex flex-col gap-4"
+            >
               <div className="flex flex-col gap-2">
                 <Label htmlFor={emailId}>Email</Label>
                 <Input

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { SearchBox } from "./search-box";
 import { ScanButton } from "./scan-button";
 import { UserMenu } from "./user-menu";
+import { MobileNav } from "./mobile-nav";
 import { VerletLogo } from "@/components/ui/verlet-logo";
 import { Badge } from "@/components/ui/badge";
 
@@ -14,6 +15,8 @@ interface TopbarProps {
 export function Topbar({ name, email, role }: TopbarProps) {
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-border bg-background/80 px-4 backdrop-blur sm:px-6 lg:px-8">
+      <MobileNav role={role} name={name} email={email} />
+
       <span className="flex items-center gap-2 text-sm font-medium text-foreground md:hidden">
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-highlight text-highlight-foreground">
           <VerletLogo className="h-4 w-4" />
