@@ -47,11 +47,11 @@ export function MobileNav({ role, name, email }: MobileNavProps) {
       {open && (
         <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true">
           <div
-            className="absolute inset-0 bg-black/50"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setOpen(false)}
             aria-hidden
           />
-          <div className="absolute inset-y-0 left-0 flex w-64 max-w-[80%] flex-col border-r border-line bg-canvas shadow-xl">
+          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[82%] flex-col border-r border-border bg-white shadow-2xl dark:bg-[#16161a]">
             <button
               type="button"
               onClick={() => setOpen(false)}
