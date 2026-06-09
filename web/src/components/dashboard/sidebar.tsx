@@ -21,13 +21,22 @@ const adminNav = [
   { href: "/users", label: "Users", icon: Users },
 ];
 
-export function Sidebar({ role, name, email }: SidebarProps) {
+/**
+ * The logo + nav links + settings block. Shared by the desktop sidebar and the
+ * mobile drawer; `onNavigate` lets the drawer close itself when a link is tapped.
+ */
+export function SidebarContent({
+  role,
+  name,
+  email,
+  onNavigate,
+}: SidebarProps & { onNavigate?: () => void }) {
   const pathname = usePathname();
   const nav = role === "admin" ? [...baseNav, ...adminNav] : baseNav;
   const settingsActive = pathname.startsWith("/settings");
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-canvas md:flex">
+    <>
       <div className="flex items-center gap-2 px-5 py-5">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-highlight text-highlight-foreground">
           <VerletLogo className="h-5 w-5" />
@@ -42,6 +51,7 @@ export function Sidebar({ role, name, email }: SidebarProps) {
             <Link
               key={href}
               href={href}
+              onClick={onNavigate}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                 active
@@ -60,6 +70,7 @@ export function Sidebar({ role, name, email }: SidebarProps) {
       <div className="border-t border-line p-3">
         <Link
           href="/settings"
+          onClick={onNavigate}
           className={cn(
             "flex items-center gap-3 rounded-lg px-2 py-2 transition-colors",
             settingsActive ? "bg-surface-2" : "hover:bg-card",
@@ -75,6 +86,15 @@ export function Sidebar({ role, name, email }: SidebarProps) {
           <Settings className="h-4 w-4 shrink-0 text-muted-foreground" />
         </Link>
       </div>
+    </>
+  );
+}
+
+/** Desktop sidebar: fixed rail, hidden below the `md` breakpoint. */
+export function Sidebar({ role, name, email }: SidebarProps) {
+  return (
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-canvas md:flex">
+      <SidebarContent role={role} name={name} email={email} />
     </aside>
   );
 }

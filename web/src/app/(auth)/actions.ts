@@ -11,7 +11,15 @@ interface AuthResponse {
   session: Session | null;
 }
 
-export async function login(formData: FormData) {
+/** Returned to the form via `useActionState`; `error` renders inline. */
+export interface AuthFormState {
+  error?: string;
+}
+
+export async function login(
+  _prevState: AuthFormState,
+  formData: FormData,
+): Promise<AuthFormState> {
   let session: Session | null = null;
   try {
     const res = await apiRequest<AuthResponse>("/auth/login", {
@@ -23,12 +31,12 @@ export async function login(formData: FormData) {
     });
     session = res.session;
   } catch (err) {
-    const message = err instanceof ApiError ? err.message : "Could not sign in.";
-    redirect(`/login?error=${encodeURIComponent(message)}`);
+    // Return the error so the form re-renders in place — no redirect, no reload.
+    return { error: err instanceof ApiError ? err.message : "Could not sign in." };
   }
 
   if (!session) {
-    redirect(`/login?error=${encodeURIComponent("No session returned.")}`);
+    return { error: "No session returned." };
   }
 
   await setSession(session);
@@ -36,7 +44,10 @@ export async function login(formData: FormData) {
   redirect("/");
 }
 
-export async function signup(formData: FormData) {
+export async function signup(
+  _prevState: AuthFormState,
+  formData: FormData,
+): Promise<AuthFormState> {
   let session: Session | null = null;
   try {
     const res = await apiRequest<AuthResponse>("/auth/signup", {
@@ -49,8 +60,7 @@ export async function signup(formData: FormData) {
     });
     session = res.session;
   } catch (err) {
-    const message = err instanceof ApiError ? err.message : "Could not sign up.";
-    redirect(`/signup?error=${encodeURIComponent(message)}`);
+    return { error: err instanceof ApiError ? err.message : "Could not sign up." };
   }
 
   // If email confirmation is disabled, Supabase returns a session immediately —
