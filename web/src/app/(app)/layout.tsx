@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { serverApi, ApiError } from "@/lib/api/server";
 import { Sidebar } from "@/components/dashboard/sidebar";
+import { BottomNav } from "@/components/dashboard/bottom-nav";
 import { Topbar } from "@/components/dashboard/topbar";
 import type { ApiUser, Profile } from "@/lib/api/types";
 
@@ -31,8 +32,9 @@ export default async function AppLayout({
       <Sidebar role={role} name={name} email={email} />
       <div className="flex min-h-screen flex-col md:pl-64">
         <Topbar name={name} email={email} role={role} />
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        <main className="flex-1 px-4 py-6 pb-24 sm:px-6 lg:px-8 md:pb-6">{children}</main>
       </div>
+      <BottomNav role={role} />
     </div>
   );
 }
