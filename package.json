@@ -6,7 +6,8 @@
     "api:dev": "npm --prefix supabase/api run dev",
     "api:build": "npm --prefix supabase/api run build",
     "api:start": "npm --prefix supabase/api start",
-    "api:typecheck": "npm --prefix supabase/api run typecheck"
+    "api:typecheck": "npm --prefix supabase/api run typecheck",
+    "build": "npm --prefix web install && npm --prefix web run build"
   },
   "devDependencies": {
     "supabase": "^2.102.0"
