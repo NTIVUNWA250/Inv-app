@@ -9,6 +9,7 @@ import { locationsRouter } from "./routes/locations.js";
 import { itemsRouter } from "./routes/items.js";
 import { stockRouter } from "./routes/stock.js";
 import { movementsRouter } from "./routes/movements.js";
+import { paymentsRouter } from "./routes/payments.js"
 
 export function createApp(): Express {
   const app = express();
@@ -33,6 +34,7 @@ export function createApp(): Express {
   app.use("/items", itemsRouter);
   app.use("/stock", stockRouter);
   app.use("/movements", movementsRouter);
+  app.use("/payments", paymentsRouter)
 
   // 404 for anything unmatched.
   app.use((_req, res) => {
