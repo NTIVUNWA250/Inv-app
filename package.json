@@ -2,6 +2,8 @@
   "name": "inventory-app",
   "private": true,
   "scripts": {
+    "postinstall": "npm --prefix web install",
+    "build": "npm --prefix web run build",
     "api:install": "npm --prefix supabase/api install",
     "api:dev": "npm --prefix supabase/api run dev",
     "api:build": "npm --prefix supabase/api run build",
