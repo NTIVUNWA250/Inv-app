@@ -76,7 +76,7 @@ paymentsRouter.post("/request", verifyLimits, asyncHandler(async (req, res) => {
     if (statusRef.status === "SUCCESSFUL") {
       await req.supabase.from("corporate_transactions").update({ status: "completed" }).eq("id", tx.id)
 
-      let itemId = string
+      let itemId: string
       const { data: existingItem } = await req.supabase.from("items").select("id").eq("name", body.product.name).maybeSingle()
       if (existingItem) {
         itemId = existingItem.id
@@ -106,5 +106,4 @@ paymentsRouter.post("/request", verifyLimits, asyncHandler(async (req, res) => {
     await req.supabase.from("corporate_transactions").update({ status: "failed" }).eq("id", tx.id)
     throw err
   }
-
 }))

@@ -53,7 +53,7 @@ export class MoMoClient {
             const createRes = await fetch(`${this.baseUrl}/v1_0/apiuser`, {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application.json",
+                    "Content-Type": "application/json",
                     "X-Reference-Id": uuid,
                     "Ocp-Apim-Subscription-Key": this.subscriptionKey,
                 },
@@ -92,7 +92,7 @@ export class MoMoClient {
         if (this.isMock) return "mock-token";
         await this.provisionSandbox()
 
-        const auth = Buffer.from(`${this.apiUser}: ${this.apiKey}`).toString("base64");
+        const auth = Buffer.from(`${this.apiUser}:${this.apiKey}`).toString("base64");
         const res = await fetch(`${this.baseUrl}/disbursement/token/`, {
             method: "POST",
             headers: {
