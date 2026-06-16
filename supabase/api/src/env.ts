@@ -34,8 +34,8 @@ export const env = {
     .split(",")
     .map((o) => o.trim())
     .filter(Boolean),
-  momoApiKey: required("MOMO_API_KEY"),
-  momoTargetEnv: required("MOMO_TARGET_ENV"),
-  momoApiUser: required("MOMO_API_USER"),
-  momoSubscriptionKey: required("MOMO_SUBSCRIPTION_KEY"),
+  momoApiKey: process.env.MOMO_API_KEY?.trim() || "",
+  momoTargetEnv: process.env.MOMO_TARGET_ENV?.trim() || "",
+  momoApiUser: process.env.MOMO_API_USER?.trim() || "",
+  momoSubscriptionKey: process.env.MOMO_SUBSCRIPTION_KEY?.trim() || "",
 };
