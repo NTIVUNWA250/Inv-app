@@ -110,4 +110,65 @@ export class MoMoClient {
         }
         return access_token;
     }
+    async transfer(phone: string, amount: number, externalId: string): Promise<string> {
+        const momoRef = crypto.randomUUID();
+
+        if (this.isMock) {
+            console.log(`[MTN MoMo Mock] Simulating transfer of RWF ${amount} to ${phone} (Ref: ${momoRef})`);
+            return momoRef;
+        }
+
+        const token = await this.getAccessToken();
+
+        const payload: MoMoTransferPayload = {
+            amount: amount.toString(),
+            currency: "EUR",
+            externalId,
+            payee: {
+                partyIdType: "MSISDN",
+                partyId: phone,
+            },
+            payerMessage: "Corporate Expense",
+            payeeNote: "Inventory Purchase",
+        }
+
+        const res = await fetch(`${this.baseUrl}/disbursement/v1_0/transfer`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "X-Reference-Id": momoRef,
+                "X-Target-Environment": this.targetEnv,
+                "Ocp-Apim-Subscription-Key": this.subscriptionKey,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (res.status !== 202) { throw new Error(`MoMo tranfer request rejected: status ${res.status}`) }
+        return momoRef
+    }
+
+    async getTransferStatus(momoRef: string): Promise<MoMoTransferStatusResponse> {
+        if (this.isMock) {
+            return { status: "SUCCESSFUL" }
+        }
+
+        const token = await this.getAccessToken()
+
+        const res = await fetch(`${this.baseUrl}/disbursement/v1_0/transfer/${momoRef}`, {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "X-Target-Environment": this.targetEnv,
+                "Ocp-Apim-Subscription-Key": this.subscriptionKey,
+            },
+        });
+
+        if (!res.ok) {
+            throw new Error(`Failed to query tranfer status: ${res.status}`);
+        }
+        return (await res.json()) as MoMoTransferStatusResponse;
+    }
 }
+
+export const momo = new MoMoClient()
