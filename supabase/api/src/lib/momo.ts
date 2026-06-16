@@ -1,5 +1,6 @@
 import crypto from "crypto"
 import { env } from "../env.js"
+import { access } from "fs";
 
 interface MoMoTransferPayload {
     amount: string;
@@ -85,5 +86,28 @@ export class MoMoClient {
             this.isMock = true;
 
         }
+    }
+
+    private async getAccessToken(): Promise<string> {
+        if (this.isMock) return "mock-token";
+        await this.provisionSandbox()
+
+        const auth = Buffer.from(`${this.apiUser}: ${this.apiKey}`).toString("base64");
+        const res = await fetch(`${this.baseUrl}/disbursement/token/`, {
+            method: "POST",
+            headers: {
+                Authorization: `Basic ${auth}`,
+                "Ocp-Apim-Subscription-Key": this.subscriptionKey,
+            },
+        })
+
+        if (!res.ok) {
+            throw new Error(`Could not fetch OAuth token: status ${res.status}`)
+        }
+
+        const { access_token } = (await res.json()) as {
+            access_token: string;
+        }
+        return access_token;
     }
 }
