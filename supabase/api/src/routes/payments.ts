@@ -27,8 +27,29 @@ async function requireAdminOrCashier(req: Request, _res: Response, next: NextFun
   }
 }
 
+async function requirePaymentAccess(req: Request, _res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { data: me, error } = await req.supabase.from("profiles").select("role, fallback_role, has_payment_permission").eq("id", req.user.id).single()
+
+    if (error || !me) {
+      throw new HttpError(403, "Could not verify authorization.", "auth_check_failed")
+    }
+
+    const isAdminOrCashier = me.role === "admin" || me.fallback_role === "cashier"
+    const hasPermission = me.has_payment_permission === true
+
+    if (!isAdminOrCashier && !hasPermission) {
+      throw new HttpError(403, "Access restricted to authorized payment users.", "forbidden")
+    }
+
+    next()
+  } catch (err) {
+    next(err)
+  }
+}
+
 paymentsRouter.use(requireAuth);
-paymentsRouter.use(requireAdminOrCashier)
+paymentsRouter.use(requirePaymentAccess);
 
 const paymentSettingsBody = z.object({
   has_payment_permission: z.boolean().optional(),
@@ -111,6 +132,8 @@ paymentsRouter.post("/request", verifyLimits, asyncHandler(async (req, res) => {
         location_id: body.location_id,
         user_id: req.user.id,
         delta: body.product.quantity,
+        capacity_delta: body.product.quantity,
+        reason: "initial",
         note: `Auto-purchased via corporate transaction ${tx.id}`,
       })
 
@@ -167,3 +190,38 @@ paymentsRouter.get("/reports/export", requireAdminOrCashier, asyncHandler(async 
 })
 )
 
+paymentsRouter.get("/notifications", asyncHandler(async (req, res) => {
+  const { data: me } = await req.supabase.from("profiles").select("role, fallback_role").eq("id", req.user.id).single()
+
+  const isAdminOrCashier = me?.role === "admin" || me?.fallback_role === "cashier"
+
+  let query = req.supabase.from("corporate_transactions").select(`id,status,amount,recipient_phone, created_at, profiles:user_id(full_name), transaction_products(name)`).order("created_at", { ascending: false }).limit(20)
+
+  if (!isAdminOrCashier) {
+    query = query.eq("user_id", req.user.id)
+  }
+  const { data, error } = await query
+  if (error) throw error
+
+  const notifications = (data || []).map((tx) => {
+    const productName = tx.transaction_products?.[0]?.name || "Product"
+    const employeeName = (tx.profiles as any)?.full_name || "An employee"
+    let message = ""
+
+    if (tx.status === "completed") {
+      message = isAdminOrCashier ? `${employeeName} paid RWF ${tx.amount} to ${tx.recipient_phone} for ${productName}.` : `Your payment of RWF ${tx.amount} for ${productName} succeeded.`
+    } else if (tx.status === "failed") {
+      message = isAdminOrCashier ? `Payment request by ${employeeName} for ${tx.amount} failed.` : `Your payment of RWF ${tx.amount} for ${productName} failed`
+    } else {
+      message = isAdminOrCashier ? `New pending payment request from ${employeeName} for RWF ${tx.amount}.` : `Your payment of RWF ${tx.amount} for ${productName} is processing.`
+    }
+
+    return {
+      id: tx.id,
+      type: tx.status,
+      message,
+      timestamp: tx.created_at,
+    }
+  })
+  res.json(notifications)
+}))
