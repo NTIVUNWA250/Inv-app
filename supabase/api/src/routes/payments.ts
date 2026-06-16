@@ -105,45 +105,82 @@ paymentsRouter.post("/request", verifyLimits, asyncHandler(async (req, res) => {
 
   if (prodErr) throw prodErr
 
+  return res.json({ transactionId: tx.id, status: "pending" })
+}))
+
+const resolvePaymentSchema = z.object({
+  id: z.string().uuid(),
+  status: z.enum(["approved", "rejected"])
+})
+
+paymentsRouter.post("/resolve", requireAdminOrCashier, asyncHandler(async (req, res) => {
+  const { id, status } = resolvePaymentSchema.parse(req.body)
+
+  // 1. Fetch transaction and check if it's pending
+  const { data: tx, error: txErr } = await req.supabase
+    .from("corporate_transactions")
+    .select("*, transaction_products(*)")
+    .eq("id", id)
+    .single()
+
+  if (txErr || !tx) {
+    throw new HttpError(404, "Transaction not found", "not_found")
+  }
+
+  if (tx.status !== "pending") {
+    throw new HttpError(400, "Transaction has already been resolved", "already_resolved")
+  }
+
+  if (status === "rejected") {
+    // Update status to failed
+    await req.supabase.from("corporate_transactions").update({ status: "failed" }).eq("id", id)
+    return res.json({ transactionId: id, status: "rejected" })
+  }
+
+  // 2. Dispatch MoMo request to pay (USSD push prompt) for approved payment
   try {
-    console.log(`[Payments] Dispatching MoMo transfer for Tx: ${tx.id}...`)
-    const momoRef = await momo.transfer(body.recipient_phone, body.amount, tx.id)
+    console.log(`[Payments] Dispatching MoMo Request to Pay for Tx: ${tx.id}...`)
+    const momoRef = await momo.requestToPay(tx.recipient_phone, tx.amount, tx.id)
 
     await req.supabase.from("corporate_transactions").update({ status: "processing", momo_ref: momoRef }).eq("id", tx.id)
 
-    console.log(`[Payments] Polling MoMo status for Ref: ${momoRef}...`)
-    const statusRef = await momo.getTransferStatus(momoRef)
+    console.log(`[Payments] Polling Collection status for Ref: ${momoRef}...`)
+    const statusRef = await momo.getCollectionStatus(momoRef)
 
     if (statusRef.status === "SUCCESSFUL") {
       await req.supabase.from("corporate_transactions").update({ status: "completed" }).eq("id", tx.id)
 
-      let itemId: string
-      const { data: existingItem } = await req.supabase.from("items").select("id").eq("name", body.product.name).maybeSingle()
-      if (existingItem) {
-        itemId = existingItem.id
-      } else {
-        const { data: newItem, error: itemErr } = await req.supabase.from("items").insert({ name: body.product.name, description: body.product.description || null }).select("id").single()
-        if (itemErr || !newItem) throw itemErr || new Error("Failed to seed new item")
-        itemId = newItem.id
+      // 3. Update stock levels
+      const product = tx.transaction_products?.[0]
+      if (product) {
+        let itemId: string
+        const { data: existingItem } = await req.supabase.from("items").select("id").eq("name", product.name).maybeSingle()
+        if (existingItem) {
+          itemId = existingItem.id
+        } else {
+          const { data: newItem, error: itemErr } = await req.supabase.from("items").insert({ name: product.name, description: product.description || null }).select("id").single()
+          if (itemErr || !newItem) throw itemErr || new Error("Failed to seed new item")
+          itemId = newItem.id
+        }
+
+        const { error: moveErr } = await req.supabase.from("stock_movements").insert({
+          item_id: itemId,
+          location_id: tx.location_id,
+          user_id: req.user.id,
+          delta: product.quantity,
+          capacity_delta: product.quantity,
+          reason: "initial",
+          note: `Auto-purchased via corporate transaction ${tx.id}`,
+        })
+
+        if (moveErr) throw moveErr
+        console.log(`[Payments] Stock updated successfully for Item: ${product.name}.`)
       }
 
-      const { error: moveErr } = await req.supabase.from("stock_movements").insert({
-        item_id: itemId,
-        location_id: body.location_id,
-        user_id: req.user.id,
-        delta: body.product.quantity,
-        capacity_delta: body.product.quantity,
-        reason: "initial",
-        note: `Auto-purchased via corporate transaction ${tx.id}`,
-      })
-
-      if (moveErr) throw moveErr
-      console.log(`[Payments] Stock updated successfully for Item: ${body.product.name}.`)
       return res.json({ transactionId: tx.id, status: "completed" })
     } else {
       await req.supabase.from("corporate_transactions").update({ status: "failed" }).eq("id", tx.id)
       return res.status(422).json({ transactionId: tx.id, status: "failed", error: statusRef.reason?.message || "Transfer failed" })
-
     }
   } catch (err) {
     await req.supabase.from("corporate_transactions").update({ status: "failed" }).eq("id", tx.id)
@@ -159,7 +196,7 @@ paymentsRouter.get("/transactions", asyncHandler(async (req, res) => {
 
   const isAdminOrCashier = me?.role === "admin" || me?.fallback_role === "cashier"
 
-  let query = req.supabase.from("corporate_transactions").select(`*, profiles:user_id(full_name, role, fallback_role), transaction_products(*)`).order("created_at", { ascending: false }).range(offset, offset + limit - 1)
+  let query = req.supabase.from("corporate_transactions").select(`*, profiles:user_id(full_name, role, fallback_role), transaction_products(*), locations:location_id(name)`).order("created_at", { ascending: false }).range(offset, offset + limit - 1)
 
   if (!isAdminOrCashier) {
     query = query.eq("user_id", req.user.id)
