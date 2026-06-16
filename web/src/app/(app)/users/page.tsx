@@ -2,20 +2,8 @@ import { redirect } from "next/navigation";
 import { Users } from "lucide-react";
 import { serverApi, ApiError } from "@/lib/api/server";
 import { Panel } from "@/components/dashboard/widgets";
-import { RoleSelect } from "@/components/dashboard/role-select";
 import { AddUserForm } from "@/components/dashboard/add-user-form";
-import { DeleteUserButton } from "@/components/dashboard/delete-user-button";
-import { BlockUserButton } from "@/components/dashboard/block-user-button";
-import { EditUserButton } from "@/components/dashboard/edit-user-button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { UsersTableClient } from "@/components/dashboard/users-table-client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { ApiUser, Profile } from "@/lib/api/types";
 
@@ -74,53 +62,7 @@ export default async function UsersPage() {
         {profiles.length === 0 ? (
           <p className="px-5 py-10 text-center text-sm text-muted-foreground">No users found.</p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="px-5">Name</TableHead>
-                <TableHead className="px-5">Role</TableHead>
-                <TableHead className="px-5">Joined</TableHead>
-                <TableHead className="px-5 text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {profiles.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell className="px-5 font-medium text-foreground">
-                    <span className="inline-flex items-center gap-2">
-                      {p.full_name || "—"}
-                      {p.blocked ? (
-                        <Badge variant="chip" className="bg-warning-soft text-warning">
-                          Blocked
-                        </Badge>
-                      ) : null}
-                    </span>
-                  </TableCell>
-                  <TableCell className="px-5">
-                    <RoleSelect id={p.id} role={p.role} isSelf={p.id === currentUserId} />
-                  </TableCell>
-                  <TableCell className="px-5 text-muted-foreground">
-                    {new Date(p.created_at).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell className="px-5 text-right">
-                    {p.id === currentUserId ? (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    ) : (
-                      <div className="flex justify-end gap-1">
-                        <EditUserButton id={p.id} fullName={p.full_name ?? ""} />
-                        <BlockUserButton
-                          id={p.id}
-                          name={p.full_name || "this user"}
-                          blocked={p.blocked}
-                        />
-                        <DeleteUserButton id={p.id} name={p.full_name || "this user"} />
-                      </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <UsersTableClient initialProfiles={profiles} currentUserId={currentUserId} />
         )}
       </Panel>
     </div>
