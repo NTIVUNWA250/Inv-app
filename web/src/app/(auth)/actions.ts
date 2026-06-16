@@ -55,7 +55,7 @@ export async function signup(
       body: {
         email: String(formData.get("email") ?? ""),
         password: String(formData.get("password") ?? ""),
-        full_name: String(formData.get("full_name") ?? ""),
+        full_name: String(formData.get("name") ?? ""),
       },
     });
     session = res.session;

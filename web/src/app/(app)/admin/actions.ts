@@ -266,6 +266,6 @@ export async function changePaymentPermission(
   has_payment_permission: boolean
 ): Promise<void> {
   const api = serverApi();
-  await api.patch(`/profiles/${id}/payment-settings`, { has_payment_permission });
+  await api.patch(`/payments/profiles/${id}/payment-settings`, { has_payment_permission });
   revalidatePath("/users");
 }

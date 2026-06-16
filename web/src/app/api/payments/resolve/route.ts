@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { paymentsDb } from "@/lib/mock-payments-db";
+import { serverApi, ApiError } from "@/lib/api/server";
 
 export async function POST(request: Request) {
   try {
@@ -13,27 +13,25 @@ export async function POST(request: Request) {
       );
     }
 
-    const index = paymentsDb.findIndex((tx) => tx.id === id);
-    if (index === -1) {
-      return NextResponse.json({ error: "Transaction not found." }, { status: 404 });
-    }
+    const api = serverApi();
 
-    paymentsDb[index].status = status;
+    // Send payload to Express API /payments/resolve
+    const backendRes = await api.post<any>("/payments/resolve", {
+      id,
+      status
+    });
 
-    // BACKEND TODO: When connecting to the Express backend API, transaction approvals
-    // will trigger an automated stock increment in Supabase.
-    // 
-    // The Express backend endpoint (implemented in supabase/api/src/routes/payments.ts)
-    // inserts a new record into `stock_movements` with delta = quantity for the
-    // selected `location_id`.
-    //
-    // The database trigger `apply_stock_movement` automatically:
-    // 1. Checks if the item already exists at that location.
-    // 2. Increments the `quantity` (e.g. from 8 to 9) and `capacity` on `item_stock`
-    //    if the payment is approved.
-    
-    return NextResponse.json({ ok: true, transaction: paymentsDb[index] });
+    // Translate resolved transaction
+    const mappedTx = {
+      id,
+      status: status === "approved" ? ("approved" as const) : ("rejected" as const),
+    };
+
+    return NextResponse.json({ ok: true, transaction: mappedTx });
   } catch (error) {
-    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    console.error("POST /api/payments/resolve failed:", error);
+    const status = error instanceof ApiError ? error.status : 500;
+    const msg = error instanceof Error ? error.message : "Internal server error";
+    return NextResponse.json({ error: msg }, { status });
   }
 }
