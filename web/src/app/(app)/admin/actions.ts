@@ -259,3 +259,13 @@ export async function updateProfile(
   revalidatePath("/", "layout");
   return { ok: true };
 }
+
+/** Change a user's payment permission status (admin-only). Throws on failure. */
+export async function changePaymentPermission(
+  id: string,
+  has_payment_permission: boolean
+): Promise<void> {
+  const api = serverApi();
+  await api.patch(`/profiles/${id}/payment-settings`, { has_payment_permission });
+  revalidatePath("/users");
+}

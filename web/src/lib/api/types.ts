@@ -20,6 +20,7 @@ export interface Profile {
   role: "member" | "admin";
   blocked: boolean;
   created_at: string;
+  has_payment_permission?: boolean;
 }
 
 export interface Item {
