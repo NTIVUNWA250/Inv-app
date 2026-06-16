@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Warehouse, Boxes, Users, Settings } from "lucide-react";
+import { Home, Warehouse, Boxes, Users, Settings, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VerletLogo } from "@/components/ui/verlet-logo";
 
@@ -15,6 +15,7 @@ interface SidebarProps {
 const baseNav = [
   { href: "/", label: "Home", icon: Home },
   { href: "/locations", label: "Locations", icon: Warehouse },
+  { href: "/payments", label: "Payment", icon: Wallet },
 ];
 const adminNav = [
   { href: "/items", label: "Items", icon: Boxes },
@@ -32,6 +33,13 @@ export function SidebarContent({
   onNavigate,
 }: SidebarProps & { onNavigate?: () => void }) {
   const pathname = usePathname();
+  // BACKEND TODO: Once the payment permission is integrated into the user profile database schema:
+  // 1. Pass the logged-in user's payment permission status (e.g. `paymentPermission: boolean`) to the Sidebar.
+  // 2. Filter out the "/payments" link from `nav` if the user role is "member" and they lack payment permission.
+  // Example:
+  // const nav = role === "admin"
+  //   ? [...baseNav, ...adminNav]
+  //   : baseNav.filter(item => item.href !== "/payments" || paymentPermission);
   const nav = role === "admin" ? [...baseNav, ...adminNav] : baseNav;
   const settingsActive = pathname.startsWith("/settings");
 

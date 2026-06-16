@@ -9,6 +9,6 @@
     "api:typecheck": "npm --prefix supabase/api run typecheck"
   },
   "devDependencies": {
-    "supabase": "^2.102.0"
+    "supabase": "^2.106.0"
   }
 }
