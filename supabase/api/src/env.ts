@@ -15,7 +15,7 @@ function required(name: string): string {
   if (!value || value.trim() === "") {
     throw new Error(
       `Missing required environment variable: ${name}. ` +
-        `Copy supabase/api/.env.example to .env and fill it in.`,
+      `Copy supabase/api/.env.example to .env and fill it in.`,
     );
   }
   return value.trim();
@@ -34,4 +34,8 @@ export const env = {
     .split(",")
     .map((o) => o.trim())
     .filter(Boolean),
+  momoApiKey: required("MOMO_API_KEY"),
+  momoTargetEnv: required("MOMO_TARGET_ENV"),
+  momoApiUser: required("MOMO_API_USER"),
+  momoSubscriptionKey: required("MOMO_SUBSCRIPTION_KEY"),
 };
