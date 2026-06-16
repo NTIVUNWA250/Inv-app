@@ -1,14 +1,34 @@
-import { Router } from "express"
+import { NextFunction, Router, type Request, type Response } from "express"
 import { z } from "zod"
-import { asyncHandler } from "../http.js"
+import { asyncHandler, HttpError } from "../http.js"
 import { requireAuth, requireAdmin } from "../middleware/auth.js"
 import { verifyLimits } from "../middleware/limits.js"
 import { momo } from "../lib/momo.js"
-import { optional, string } from "zod/v4"
 
 export const paymentsRouter = Router()
 
+// middleware
+
+async function requireAdminOrCashier(req: Request, _res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { data: me, error } = await req.supabase.from("profiles").select("role, fallback_role").eq("id", req.user.id).single()
+
+    if (error || !me) {
+      throw new HttpError(403, "Could not verify authorization.", "auth_check_failed")
+    }
+
+    if (me.role !== "admin" && me.fallback_role !== "cashier") {
+      throw new HttpError(403, "Access restricted to admins and cashiers", "forbidden")
+    }
+
+    next()
+  } catch (err) {
+    next(err)
+  }
+}
+
 paymentsRouter.use(requireAuth);
+paymentsRouter.use(requireAdminOrCashier)
 
 const paymentSettingsBody = z.object({
   has_payment_permission: z.boolean().optional(),
@@ -107,3 +127,4 @@ paymentsRouter.post("/request", verifyLimits, asyncHandler(async (req, res) => {
     throw err
   }
 }))
+
