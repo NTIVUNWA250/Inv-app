@@ -147,3 +147,23 @@ paymentsRouter.get("/transactions", asyncHandler(async (req, res) => {
   res.json(data)
 }))
 
+paymentsRouter.get("/reports/export", requireAdminOrCashier, asyncHandler(async (req, res) => {
+  const { data, error } = await req.supabase.from("corporate_transactions").select(`id, created_at, amount, recipient_phone, status, profiles:user_id(full_name) ,transaction_products(name, quantity, price)`).order("created_at", { ascending: false })
+  if (error) throw error
+
+  let csv = "Transaction ID, Employee, Recipient Phone, Product Name, Quantity, Price, Total Amount, Status, Date\n"
+  for (const tx of data || []) {
+    const employee = (tx.profiles as any)?.full_name || "Unknown"
+    const product = tx.transaction_products?.[0]?.name || "N/A"
+    const qty = tx.transaction_products?.[0]?.quantity || 0
+    const price = tx.transaction_products?.[0]?.price || 0
+    const date = new Date(tx.created_at).toISOString()
+    csv += `"${tx.id}", "${employee.replace(/"/g, '""')}", "${tx.recipient_phone}", "${product.replace(/"/g, '""')}",${qty}, ${price}, ${tx.amount}, "${tx.status}","${date}"\n`
+  }
+
+  res.setHeader("Content-Type", "text/csv")
+  res.setHeader("Content-Disposition", "attachment;filename=corporate_expense_report.csv")
+  res.send(csv)
+})
+)
+
