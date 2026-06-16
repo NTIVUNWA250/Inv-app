@@ -128,3 +128,22 @@ paymentsRouter.post("/request", verifyLimits, asyncHandler(async (req, res) => {
   }
 }))
 
+const listQuerySchema = z.object({ limit: z.coerce.number().int().positive().max(200).default(50), offset: z.coerce.number().int().nonnegative().default(0), })
+
+paymentsRouter.get("/transactions", asyncHandler(async (req, res) => {
+  const { limit, offset } = listQuerySchema.parse(req.query)
+  const { data: me } = await req.supabase.from("profiles").select("role, fallback_role").eq("id", req.user.id).single()
+
+  const isAdminOrCashier = me?.role === "admin" || me?.fallback_role === "cashier"
+
+  let query = req.supabase.from("corporate_transactions").select(`*, profiles:user_id(full_name, role, fallback_role), transaction_products(*)`).order("created_at", { ascending: false }).range(offset, offset + limit - 1)
+
+  if (!isAdminOrCashier) {
+    query = query.eq("user_id", req.user.id)
+  }
+
+  const { data, error } = await query
+  if (error) throw error
+  res.json(data)
+}))
+
