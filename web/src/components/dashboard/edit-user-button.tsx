@@ -13,13 +13,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { editUser, type EditUserState } from "@/app/(app)/admin/actions";
+import type { Profile } from "@/lib/api/types";
 
 /**
- * Per-row admin action: edit another user's name, email, and/or password.
+ * Per-row admin action: edit another user's name, email, password, and limits.
  * Opens a small modal (the rest of the app uses inline panels, but a per-row
  * editor reads better as an overlay). Only filled-in fields are submitted.
  */
-export function EditUserButton({ id, fullName }: { id: string; fullName: string }) {
+export function EditUserButton({ profile }: { profile: Profile }) {
+  const id = profile.id;
+  const fullName = profile.full_name ?? "";
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState<EditUserState, FormData>(
     editUser.bind(null, id),
@@ -86,7 +89,57 @@ export function EditUserButton({ id, fullName }: { id: string; fullName: string 
               />
             </div>
 
-            <p className="text-xs text-muted-foreground">Only the fields you fill in will change.</p>
+            <div className="border-t border-border pt-4 space-y-4">
+              <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">Payment Settings</h4>
+              
+              <div className="flex items-center space-x-2">
+                <input
+                  id={`edit-payment-permission-${id}`}
+                  name="has_payment_permission"
+                  type="checkbox"
+                  defaultChecked={!!profile.has_payment_permission}
+                  className="h-4 w-4 rounded border-gray-300 text-highlight focus:ring-highlight"
+                />
+                <Label htmlFor={`edit-payment-permission-${id}`} className="text-sm font-medium cursor-pointer">
+                  Allow payment requests (USSD checkout)
+                </Label>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5 col-span-3 sm:col-span-1">
+                  <Label htmlFor={`edit-daily-limit-${id}`} className="text-xs">Daily Limit (RWF)</Label>
+                  <Input
+                    id={`edit-daily-limit-${id}`}
+                    name="daily_limit"
+                    type="number"
+                    min={0}
+                    defaultValue={profile.daily_limit ?? 0}
+                  />
+                </div>
+                <div className="space-y-1.5 col-span-3 sm:col-span-1">
+                  <Label htmlFor={`edit-monthly-limit-${id}`} className="text-xs">Monthly Limit (RWF)</Label>
+                  <Input
+                    id={`edit-monthly-limit-${id}`}
+                    name="monthly_limit"
+                    type="number"
+                    min={0}
+                    defaultValue={profile.monthly_limit ?? 0}
+                  />
+                </div>
+                <div className="space-y-1.5 col-span-3 sm:col-span-1">
+                  <Label htmlFor={`edit-per-tx-limit-${id}`} className="text-xs">Per-Tx Limit (RWF)</Label>
+                  <Input
+                    id={`edit-per-tx-limit-${id}`}
+                    name="per_transaction_limit"
+                    type="number"
+                    min={0}
+                    defaultValue={profile.per_transaction_limit ?? 0}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground font-medium">Only the fields you fill in will change.</p>
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>

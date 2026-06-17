@@ -115,7 +115,7 @@ export function UsersTableClient({
                   <span className="text-xs text-muted-foreground">—</span>
                 ) : (
                   <div className="flex justify-end gap-1">
-                    <EditUserButton id={p.id} fullName={p.full_name ?? ""} />
+                    <EditUserButton profile={p} />
                     <BlockUserButton
                       id={p.id}
                       name={p.full_name || "this user"}

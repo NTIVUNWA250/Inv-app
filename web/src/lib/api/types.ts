@@ -21,6 +21,9 @@ export interface Profile {
   blocked: boolean;
   created_at: string;
   has_payment_permission?: boolean;
+  daily_limit?: number;
+  monthly_limit?: number;
+  per_transaction_limit?: number;
 }
 
 export interface Item {

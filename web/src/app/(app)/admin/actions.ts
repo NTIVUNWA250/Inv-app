@@ -207,6 +207,11 @@ export async function editUser(
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
 
+  const has_payment_permission = formData.get("has_payment_permission") === "on";
+  const daily_limit = Number(formData.get("daily_limit") ?? "0");
+  const monthly_limit = Number(formData.get("monthly_limit") ?? "0");
+  const per_transaction_limit = Number(formData.get("per_transaction_limit") ?? "0");
+
   const body: Record<string, string> = {};
   if (full_name) body.full_name = full_name;
   if (email) body.email = email;
@@ -214,12 +219,17 @@ export async function editUser(
     if (password.length < 6) return { error: "Password must be at least 6 characters." };
     body.password = password;
   }
-  if (Object.keys(body).length === 0) {
-    return { error: "Fill in at least one field to update." };
-  }
 
   try {
-    await api.patch(`/users/${id}`, body);
+    if (Object.keys(body).length > 0) {
+      await api.patch(`/users/${id}`, body);
+    }
+    await api.patch(`/payments/profiles/${id}/payment-settings`, {
+      has_payment_permission,
+      daily_limit,
+      monthly_limit,
+      per_transaction_limit,
+    });
   } catch (err) {
     return { error: err instanceof ApiError ? err.message : "Could not update user." };
   }
