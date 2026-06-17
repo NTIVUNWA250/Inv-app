@@ -33,6 +33,15 @@ interface Transaction {
   locationName?: string;
 }
 
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
+};
+
 interface PaymentsClientProps {
   currentUserName: string;
   locations: Location[];
@@ -205,6 +214,15 @@ export function PaymentsClient({ currentUserName, locations }: PaymentsClientPro
     const selectedLoc = locations.find((l) => l.id === form.locationId);
     const locationName = selectedLoc ? selectedLoc.name : "Default";
 
+    let base64Image: string | undefined = undefined;
+    if (file) {
+      try {
+        base64Image = await fileToBase64(file);
+      } catch (err) {
+        console.error("Failed to convert image to base64:", err);
+      }
+    }
+
     try {
       const res = await fetch("/api/payments", {
         method: "POST",
@@ -217,7 +235,9 @@ export function PaymentsClient({ currentUserName, locations }: PaymentsClientPro
           description: form.description.trim(),
           quantity: form.quantity,
           price: priceNum,
-          imageName: file?.name,
+          // MOCK/SANDBOX STORAGE: Send the Base64 Data URL to simulate image upload.
+          // FOR PRODUCTION REAL BACKEND: Upload to Supabase/S3 first, then send the public URL instead.
+          imageName: base64Image || undefined,
           createdBy: currentUserName,
           locationId: form.locationId,
           locationName,

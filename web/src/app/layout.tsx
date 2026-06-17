@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans, DM_Serif_Display, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import Script from "next/script";
 
 // Verlet typography: DM Sans (body), DM Serif Display (headings), JetBrains Mono (numbers).
 const dmSans = DM_Sans({
@@ -41,7 +42,11 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <Script
+          id="theme-loader"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: themeScript }}
+        />
       </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

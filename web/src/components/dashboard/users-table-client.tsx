@@ -83,7 +83,7 @@ export function UsersTableClient({
               <TableCell className="px-5">
                 <RoleSelect id={p.id} role={p.role} isSelf={p.id === currentUserId} />
               </TableCell>
-              <TableCell className="px-5 text-muted-foreground">
+              <TableCell className="px-5 text-muted-foreground" suppressHydrationWarning>
                 {new Date(p.created_at).toLocaleDateString()}
               </TableCell>
               <TableCell className="px-5 text-center">
