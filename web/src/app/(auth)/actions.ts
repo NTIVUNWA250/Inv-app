@@ -63,14 +63,6 @@ export async function signup(
     return { error: err instanceof ApiError ? err.message : "Could not sign up." };
   }
 
-  // If email confirmation is disabled, Supabase returns a session immediately —
-  // log the user straight in. Otherwise, send them to log in after confirming.
-  if (session) {
-    await setSession(session);
-    revalidatePath("/", "layout");
-    redirect("/");
-  }
-
   redirect("/login?message=Check your email to confirm your account");
 }
 
