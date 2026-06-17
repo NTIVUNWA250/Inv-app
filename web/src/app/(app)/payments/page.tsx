@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function PaymentsPage() {
   const api = serverApi();
   let userName = "User";
+  let userRole: "admin" | "member" = "member";
   let locations: Location[] = [];
   let items: Item[] = [];
   let stock: StockLevel[] = [];
@@ -16,6 +17,7 @@ export default async function PaymentsPage() {
   try {
     const me = await api.get<{ user: ApiUser; profile: Profile | null }>("/auth/me");
     userName = me.profile?.full_name || me.user.email || "User";
+    userRole = me.profile?.role || "member";
     
     [locations, items, stock] = await Promise.all([
       api.get<Location[]>("/locations"),
@@ -42,6 +44,7 @@ export default async function PaymentsPage() {
 
       <PaymentsClient
         currentUserName={userName}
+        role={userRole}
         locations={locations}
         items={items}
         stock={stock}
@@ -49,4 +52,5 @@ export default async function PaymentsPage() {
     </div>
   );
 }
+
 

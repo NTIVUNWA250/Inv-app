@@ -9,13 +9,6 @@ export async function GET() {
     const mappedTxs = backendTxs.map((tx) => {
       const product = tx.transaction_products?.[0] || {};
 
-      let status: "pending" | "approved" | "rejected" = "pending";
-      if (tx.status === "completed") {
-        status = "approved";
-      } else if (tx.status === "failed") {
-        status = "rejected";
-      }
-
       return {
         id: tx.id,
         recipient: tx.recipient_phone,
@@ -23,7 +16,7 @@ export async function GET() {
         description: product.description || "",
         quantity: product.quantity || 0,
         price: product.price || 0,
-        status,
+        status: tx.status,
         imageName: tx.receipt_base64 || undefined,
         createdBy: tx.profiles?.full_name || "Unknown",
         createdAt: tx.created_at,
@@ -94,7 +87,7 @@ export async function POST(request: Request) {
       description: String(body.description || "").trim(),
       quantity: qtyNum,
       price: priceNum,
-      status: backendRes.status === "completed" ? ("approved" as const) : backendRes.status === "failed" ? ("rejected" as const) : ("pending" as const),
+      status: backendRes.status,
       createdBy: String(body.createdBy).trim(),
       createdAt: new Date().toISOString(),
       locationId: String(body.locationId).trim(),
@@ -109,3 +102,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: msg }, { status });
   }
 }
+

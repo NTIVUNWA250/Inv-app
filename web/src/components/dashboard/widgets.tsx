@@ -30,15 +30,15 @@ export function StatCard({
 }
 
 const STATUS_STYLES: Record<StockStatus, { label: string; className: string }> = {
-  out: { label: "Out of stock", className: "bg-destructive-soft text-destructive" },
-  low: { label: "Low", className: "bg-warning-soft text-warning" },
-  ok: { label: "In stock", className: "bg-success-soft text-success" },
+  out: { label: "Out of stock", className: "bg-destructive-soft text-red-700 dark:text-destructive border-destructive/25" },
+  low: { label: "Low", className: "bg-warning-soft text-amber-700 dark:text-warning border-warning/25" },
+  ok: { label: "In stock", className: "bg-success-soft text-emerald-700 dark:text-success border-success/25" },
 };
 
 export function StatusBadge({ quantity, capacity }: { quantity: number; capacity?: number }) {
   const { label, className } = STATUS_STYLES[statusFor(quantity, capacity)];
   return (
-    <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", className)}>
+    <span className={cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium", className)}>
       {label}
     </span>
   );

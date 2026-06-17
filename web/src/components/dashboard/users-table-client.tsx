@@ -66,14 +66,17 @@ export function UsersTableClient({
                 <span className="inline-flex items-center gap-2">
                   {p.full_name || "—"}
                   {p.blocked ? (
-                    <Badge variant="chip" className="bg-warning-soft text-warning">
+                    <Badge
+                      variant="chip"
+                      className="bg-warning-soft text-amber-700 dark:text-warning border border-warning/25"
+                    >
                       Blocked
                     </Badge>
                   ) : null}
                   {isAllowed ? (
                     <Badge
                       variant="chip"
-                      className="bg-success-soft text-success animate-in fade-in zoom-in-95 duration-200"
+                      className="bg-success-soft text-emerald-700 dark:text-success border border-success/25 animate-in fade-in zoom-in-95 duration-200"
                     >
                       Allowed to Pay
                     </Badge>

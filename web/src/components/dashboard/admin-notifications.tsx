@@ -27,7 +27,7 @@ interface Transaction {
   description: string;
   quantity: number;
   price: number;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "processing" | "completed" | "failed";
   imageName?: string;
   createdBy: string;
   createdAt: string;
@@ -36,6 +36,7 @@ interface Transaction {
 export function AdminNotifications() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+  const [isResolving, setIsResolving] = useState<"approved" | "rejected" | null>(null);
 
   // Fetch transactions from server and poll every 3 seconds to support multi-profile real-time updates
   useEffect(() => {
@@ -72,6 +73,7 @@ export function AdminNotifications() {
   };
 
   const handleResolve = async (txId: string, status: "approved" | "rejected") => {
+    setIsResolving(status);
     try {
       const res = await fetch("/api/payments/resolve", {
         method: "POST",
@@ -85,17 +87,23 @@ export function AdminNotifications() {
       });
 
       if (res.ok) {
+        const finalStatus = status === "approved" ? "completed" : "failed";
         // Optimistically update local state immediately
         setTransactions((prev) =>
-          prev.map((tx) => (tx.id === txId ? { ...tx, status } : tx))
+          prev.map((tx) => (tx.id === txId ? { ...tx, status: finalStatus } : tx))
         );
+        alert(`Payment of ${formatRWF(selectedTx!.price * selectedTx!.quantity)} was successfully resolved!`);
+        setSelectedTx(null);
       } else {
-        console.error("Failed to resolve payment on server");
+        const errData = await res.json().catch(() => ({}));
+        alert(`Failed to resolve payment: ${errData.error || "The transaction did not complete."}`);
       }
     } catch (e) {
       console.error("Failed to update transaction status", e);
+      alert("Network error: Could not reach the payment server.");
+    } finally {
+      setIsResolving(null);
     }
-    setSelectedTx(null);
   };
 
   return (
@@ -248,16 +256,16 @@ export function AdminNotifications() {
                 variant="outline"
                 className="w-full sm:w-auto border-destructive/30 hover:bg-destructive/10 text-destructive transition-colors"
                 onClick={() => handleResolve(selectedTx.id, "rejected")}
+                disabled={isResolving !== null}
               >
-                <XCircle className="h-4 w-4" />
-                Reject
+                {isResolving === "rejected" ? "Rejecting..." : "Reject"}
               </Button>
               <Button
                 className="w-full sm:w-auto transition-colors"
                 onClick={() => handleResolve(selectedTx.id, "approved")}
+                disabled={isResolving !== null}
               >
-                <CheckCircle2 className="h-4 w-4" />
-                Approve Payment
+                {isResolving === "approved" ? "Processing MoMo Pay..." : "Approve Payment"}
               </Button>
             </DialogFooter>
           </DialogContent>
