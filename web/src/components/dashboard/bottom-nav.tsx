@@ -2,13 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Warehouse, Boxes, Users, Settings } from "lucide-react";
+import { Home, Warehouse, Boxes, Users, Settings, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const baseNav = [
-  { href: "/", label: "Home", icon: Home },
-  { href: "/locations", label: "Locations", icon: Warehouse },
-];
 const adminNav = [
   { href: "/items", label: "Items", icon: Boxes },
   { href: "/users", label: "Users", icon: Users },
@@ -18,8 +14,24 @@ const adminNav = [
  * Persistent bottom navigation for phone-width screens (hidden at `md`+, where
  * the left sidebar takes over). Mirrors the Flutter app's bottom tabs.
  */
-export function BottomNav({ role }: { role: "member" | "admin" }) {
+export function BottomNav({
+  role,
+  hasPaymentPermission = false,
+}: {
+  role: "member" | "admin";
+  hasPaymentPermission?: boolean;
+}) {
   const pathname = usePathname();
+
+  const baseNav = [
+    { href: "/", label: "Home", icon: Home },
+    { href: "/locations", label: "Locations", icon: Warehouse },
+  ];
+
+  if (role === "admin" || hasPaymentPermission) {
+    baseNav.push({ href: "/payments", label: "Payment", icon: Wallet });
+  }
+
   const items = [
     ...(role === "admin" ? [...baseNav, ...adminNav] : baseNav),
     { href: "/settings", label: "Settings", icon: Settings },
