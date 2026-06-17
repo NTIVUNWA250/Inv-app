@@ -10,6 +10,7 @@ interface SidebarProps {
   role: "member" | "admin";
   name: string;
   email: string;
+  hasPaymentPermission?: boolean;
 }
 
 const baseNav = [
@@ -30,17 +31,13 @@ export function SidebarContent({
   role,
   name,
   email,
+  hasPaymentPermission = false,
   onNavigate,
 }: SidebarProps & { onNavigate?: () => void }) {
   const pathname = usePathname();
-  // BACKEND TODO: Once the payment permission is integrated into the user profile database schema:
-  // 1. Pass the logged-in user's payment permission status (e.g. `paymentPermission: boolean`) to the Sidebar.
-  // 2. Filter out the "/payments" link from `nav` if the user role is "member" and they lack payment permission.
-  // Example:
-  // const nav = role === "admin"
-  //   ? [...baseNav, ...adminNav]
-  //   : baseNav.filter(item => item.href !== "/payments" || paymentPermission);
-  const nav = role === "admin" ? [...baseNav, ...adminNav] : baseNav;
+  const nav = role === "admin"
+    ? [...baseNav, ...adminNav]
+    : baseNav.filter((item) => item.href !== "/payments" || hasPaymentPermission);
   const settingsActive = pathname.startsWith("/settings");
 
   return (
@@ -99,10 +96,15 @@ export function SidebarContent({
 }
 
 /** Desktop sidebar: fixed rail, hidden below the `md` breakpoint. */
-export function Sidebar({ role, name, email }: SidebarProps) {
+export function Sidebar({ role, name, email, hasPaymentPermission }: SidebarProps) {
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-canvas md:flex">
-      <SidebarContent role={role} name={name} email={email} />
+      <SidebarContent
+        role={role}
+        name={name}
+        email={email}
+        hasPaymentPermission={hasPaymentPermission}
+      />
     </aside>
   );
 }

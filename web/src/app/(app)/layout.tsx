@@ -29,7 +29,12 @@ export default async function AppLayout({
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Sidebar role={role} name={name} email={email} />
+      <Sidebar
+        role={role}
+        name={name}
+        email={email}
+        hasPaymentPermission={!!profile?.has_payment_permission}
+      />
       <div className="flex min-h-screen flex-col md:pl-64">
         <Topbar name={name} email={email} role={role} />
         <main className="flex-1 px-4 py-6 pb-24 sm:px-6 lg:px-8 md:pb-6">{children}</main>
