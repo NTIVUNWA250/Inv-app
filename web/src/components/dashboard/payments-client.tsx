@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import type { Location } from "@/lib/api/types";
+import type { Location, Item, StockLevel } from "@/lib/api/types";
 
 interface Transaction {
   id: string;
@@ -45,9 +45,16 @@ const fileToBase64 = (file: File): Promise<string> => {
 interface PaymentsClientProps {
   currentUserName: string;
   locations: Location[];
+  items: Item[];
+  stock: StockLevel[];
 }
 
-export function PaymentsClient({ currentUserName, locations }: PaymentsClientProps) {
+export function PaymentsClient({
+  currentUserName,
+  locations,
+  items,
+  stock,
+}: PaymentsClientProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [form, setForm] = useState({
     recipient: "",
@@ -176,6 +183,27 @@ export function PaymentsClient({ currentUserName, locations }: PaymentsClientPro
       ...prev,
       [name]: name === "quantity" ? parseInt(value) || 0 : value,
     }));
+  };
+
+  const handleProductChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedName = e.target.value;
+    const selectedItem = items.find((item) => item.name === selectedName);
+
+    if (selectedItem) {
+      // Find where this item is currently stocked
+      const itemStock = stock.filter((s) => s.item_id === selectedItem.id);
+      // Sort to find the location with the highest stock level
+      const preferredStock = itemStock.sort((a, b) => b.quantity - a.quantity)[0];
+      // Default to the first location if no stock level is found
+      const targetLocationId = preferredStock ? preferredStock.location_id : (locations[0]?.id || "");
+
+      setForm((prev) => ({
+        ...prev,
+        productName: selectedItem.name,
+        description: selectedItem.description || "",
+        locationId: targetLocationId,
+      }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -333,14 +361,23 @@ export function PaymentsClient({ currentUserName, locations }: PaymentsClientPro
               </div>
               <div className="space-y-2">
                 <Label htmlFor="productName">Product Name</Label>
-                <Input
+                <select
                   id="productName"
                   name="productName"
                   required
-                  placeholder="e.g. Office Supplies"
                   value={form.productName}
-                  onChange={handleChange}
-                />
+                  onChange={handleProductChange}
+                  className="flex h-10 w-full rounded-md border border-input bg-card/60 bg-opacity-70 dark:bg-card/40 px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-highlight disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="" disabled className="bg-background">
+                    Select a registered product...
+                  </option>
+                  {items.map((item) => (
+                    <option key={item.id} value={item.name} className="bg-background text-foreground">
+                      {item.name} {item.sku ? `(${item.sku})` : ""}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 

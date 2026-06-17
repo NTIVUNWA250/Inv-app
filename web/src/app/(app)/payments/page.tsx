@@ -2,7 +2,7 @@ import React from "react";
 import { serverApi, ApiError } from "@/lib/api/server";
 import { redirect } from "next/navigation";
 import { PaymentsClient } from "@/components/dashboard/payments-client";
-import type { ApiUser, Profile, Location } from "@/lib/api/types";
+import type { ApiUser, Profile, Location, Item, StockLevel } from "@/lib/api/types";
 
 export const dynamic = "force-dynamic";
 
@@ -10,16 +10,23 @@ export default async function PaymentsPage() {
   const api = serverApi();
   let userName = "User";
   let locations: Location[] = [];
+  let items: Item[] = [];
+  let stock: StockLevel[] = [];
 
   try {
     const me = await api.get<{ user: ApiUser; profile: Profile | null }>("/auth/me");
     userName = me.profile?.full_name || me.user.email || "User";
-    locations = await api.get<Location[]>("/locations");
+    
+    [locations, items, stock] = await Promise.all([
+      api.get<Location[]>("/locations"),
+      api.get<Item[]>("/items"),
+      api.get<StockLevel[]>("/stock"),
+    ]);
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) {
       redirect("/login");
     }
-    console.error("Failed to retrieve locations:", err);
+    console.error("Failed to retrieve data for payments page:", err);
   }
 
   return (
@@ -33,7 +40,13 @@ export default async function PaymentsPage() {
         </p>
       </div>
 
-      <PaymentsClient currentUserName={userName} locations={locations} />
+      <PaymentsClient
+        currentUserName={userName}
+        locations={locations}
+        items={items}
+        stock={stock}
+      />
     </div>
   );
 }
+
