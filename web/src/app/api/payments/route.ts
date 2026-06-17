@@ -24,7 +24,7 @@ export async function GET() {
         quantity: product.quantity || 0,
         price: product.price || 0,
         status,
-        imageName: undefined,
+        imageName: tx.receipt_base64 || undefined,
         createdBy: tx.profiles?.full_name || "Unknown",
         createdAt: tx.created_at,
         locationId: tx.location_id,
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
         quantity: qtyNum,
         price: priceNum
       },
-      receipt_base64: null
+      receipt_base64: body.imageName || null
     });
 
     const mappedTx = {
