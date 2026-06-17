@@ -47,7 +47,7 @@ export function AdminNotifications() {
           setTransactions(data);
         }
       } catch (e) {
-        console.error("Failed to load transactions for notifications", e);
+        console.warn("Failed to load transactions for notifications", e);
       }
     };
 

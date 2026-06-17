@@ -56,6 +56,7 @@ export function PaymentsClient({
   stock,
 }: PaymentsClientProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [selectedItemId, setSelectedItemId] = useState<string>("");
   const [form, setForm] = useState({
     recipient: "",
     productName: "",
@@ -152,7 +153,7 @@ export function PaymentsClient({
           setTransactions(data);
         }
       } catch (e) {
-        console.error("Failed to load transactions", e);
+        console.warn("Failed to load transactions", e);
       }
     };
 
@@ -185,24 +186,33 @@ export function PaymentsClient({
     }));
   };
 
-  const handleProductChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedName = e.target.value;
-    const selectedItem = items.find((item) => item.name === selectedName);
+  const handleItemSelectorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedVal = e.target.value;
+    setSelectedItemId(selectedVal);
 
-    if (selectedItem) {
-      // Find where this item is currently stocked
-      const itemStock = stock.filter((s) => s.item_id === selectedItem.id);
-      // Sort to find the location with the highest stock level
-      const preferredStock = itemStock.sort((a, b) => b.quantity - a.quantity)[0];
-      // Default to the first location if no stock level is found
-      const targetLocationId = preferredStock ? preferredStock.location_id : (locations[0]?.id || "");
-
+    if (selectedVal === "") {
       setForm((prev) => ({
         ...prev,
-        productName: selectedItem.name,
-        description: selectedItem.description || "",
-        locationId: targetLocationId,
+        productName: "",
+        description: "",
       }));
+    } else {
+      const selectedItem = items.find((item) => item.id === selectedVal);
+      if (selectedItem) {
+        // Find where this item is currently stocked
+        const itemStock = (stock || []).filter((s) => s.item_id === selectedItem.id);
+        // Sort to find the location with the highest stock level
+        const preferredStock = itemStock.sort((a, b) => b.quantity - a.quantity)[0];
+        // Default to the first location if no stock level is found
+        const targetLocationId = preferredStock ? preferredStock.location_id : (locations[0]?.id || "");
+
+        setForm((prev) => ({
+          ...prev,
+          productName: selectedItem.name,
+          description: selectedItem.description || "",
+          locationId: targetLocationId,
+        }));
+      }
     }
   };
 
@@ -285,6 +295,7 @@ export function PaymentsClient({
           price: "",
           locationId: "",
         });
+        setSelectedItemId("");
         setFile(null);
         setStatusMsg({
           type: "success",
@@ -359,21 +370,22 @@ export function PaymentsClient({
                   onChange={handleChange}
                 />
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="productName">Product Name</Label>
+                <Label htmlFor="itemSelector">Product Name</Label>
                 <select
-                  id="productName"
-                  name="productName"
+                  id="itemSelector"
+                  name="itemSelector"
                   required
-                  value={form.productName}
-                  onChange={handleProductChange}
+                  value={selectedItemId}
+                  onChange={handleItemSelectorChange}
                   className="flex h-10 w-full rounded-md border border-input bg-card/60 bg-opacity-70 dark:bg-card/40 px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-highlight disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <option value="" disabled className="bg-background">
+                  <option value="" className="bg-background">
                     Select a registered product...
                   </option>
                   {items.map((item) => (
-                    <option key={item.id} value={item.name} className="bg-background text-foreground">
+                    <option key={item.id} value={item.id} className="bg-background text-foreground">
                       {item.name} {item.sku ? `(${item.sku})` : ""}
                     </option>
                   ))}
@@ -390,6 +402,8 @@ export function PaymentsClient({
                   placeholder="e.g. Standard notebooks, printing papers, and pens for the team"
                   value={form.description}
                   onChange={handleChange}
+                  readOnly={selectedItemId !== ""}
+                  className={selectedItemId !== "" ? "bg-muted cursor-not-allowed opacity-80" : ""}
                 />
               </div>
               <div className="space-y-2">

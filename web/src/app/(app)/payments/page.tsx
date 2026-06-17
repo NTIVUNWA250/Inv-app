@@ -17,16 +17,20 @@ export default async function PaymentsPage() {
     const me = await api.get<{ user: ApiUser; profile: Profile | null }>("/auth/me");
     userName = me.profile?.full_name || me.user.email || "User";
     
-    [locations, items, stock] = await Promise.all([
+    // Fetch locations, catalog items, and stock in parallel
+    const [fetchedLocations, fetchedItems, fetchedStock] = await Promise.all([
       api.get<Location[]>("/locations"),
       api.get<Item[]>("/items"),
       api.get<StockLevel[]>("/stock"),
     ]);
+    locations = fetchedLocations;
+    items = fetchedItems;
+    stock = fetchedStock;
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) {
       redirect("/login");
     }
-    console.error("Failed to retrieve data for payments page:", err);
+    console.error("Failed to retrieve payments data:", err);
   }
 
   return (
@@ -40,13 +44,12 @@ export default async function PaymentsPage() {
         </p>
       </div>
 
-      <PaymentsClient
-        currentUserName={userName}
-        locations={locations}
-        items={items}
+      <PaymentsClient 
+        currentUserName={userName} 
+        locations={locations} 
+        items={items} 
         stock={stock}
       />
     </div>
   );
 }
-
