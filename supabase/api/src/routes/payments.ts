@@ -406,3 +406,46 @@ paymentsRouter.get("/notifications", asyncHandler(async (req, res) => {
   })
   res.json(notifications)
 }))
+
+const receiptUploadSchema = z.object({
+  receipt_base64: z.string().trim().min(1)
+})
+
+paymentsRouter.post("/transactions/:id/receipt", asyncHandler(async (req, res) => {
+  const { id } = req.params
+  const { receipt_base64 } = receiptUploadSchema.parse(req.body)
+
+  const { data: tx, error: txErr } = await req.supabase
+    .from("corporate_transactions")
+    .select("*")
+    .eq("id", id)
+    .single()
+
+  if (txErr || !tx) {
+    throw new HttpError(404, "Transaction not found", "not_found")
+  }
+
+  if (tx.status !== "completed") {
+    throw new HttpError(400, "Receipts can only be uploaded for completed transactions.", "invalid_status")
+  }
+
+  const { data: me } = await req.supabase
+    .from("profiles")
+    .select("role, fallback_role")
+    .eq("id", req.user.id)
+    .single()
+
+  const isAdminOrCashier = me?.role === "admin" || me?.fallback_role === "cashier"
+  if (tx.user_id !== req.user.id && !isAdminOrCashier) {
+    throw new HttpError(403, "You do not have permission to upload a receipt for this transaction.", "forbidden")
+  }
+
+  const { error: updateErr } = await req.supabase
+    .from("corporate_transactions")
+    .update({ receipt_base64 })
+    .eq("id", id)
+
+  if (updateErr) throw updateErr
+
+  return res.json({ ok: true, message: "Receipt uploaded successfully" })
+}))

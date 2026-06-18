@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/table";
 
 import type { Location, Item, StockLevel } from "@/lib/api/types";
+import { ReceiptUploadDialog } from "./receipt-upload-dialog";
+import { ReceiptViewDialog } from "./receipt-view-dialog";
 
 interface Transaction {
   id: string;
@@ -74,6 +76,16 @@ export function PaymentsClient({
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [isSavingBudget, setIsSavingBudget] = useState(false);
   const [newAllocation, setNewAllocation] = useState("0");
+
+  // Receipt Upload & View modal states
+  const [uploadTxId, setUploadTxId] = useState<string | null>(null);
+  const [viewTx, setViewTx] = useState<{ base64: string; productName: string } | null>(null);
+
+  const handleUploadSuccess = (txId: string, receiptBase64: string) => {
+    setTransactions((prev) =>
+      prev.map((tx) => (tx.id === txId ? { ...tx, imageName: receiptBase64 } : tx))
+    );
+  };
 
   const fetchBudget = async () => {
     try {
@@ -661,6 +673,7 @@ export function PaymentsClient({
                     <TableHead className="px-5">Location</TableHead>
                     <TableHead className="px-5 text-right">Quantity</TableHead>
                     <TableHead className="px-5 text-right">Price</TableHead>
+                    <TableHead className="px-5 text-right">Receipt</TableHead>
                     <TableHead className="px-5 text-right">Status</TableHead>
                     <TableHead className="px-5 text-right">Date</TableHead>
                   </TableRow>
@@ -682,6 +695,29 @@ export function PaymentsClient({
                       </TableCell>
                       <TableCell className="px-5 text-right font-mono tabular-nums text-foreground font-semibold">
                         {formatRWF(tx.price)}
+                      </TableCell>
+                      <TableCell className="px-5 text-right">
+                        {tx.status === "completed" ? (
+                          tx.imageName ? (
+                            <button
+                              type="button"
+                              onClick={() => setViewTx({ base64: tx.imageName!, productName: tx.productName })}
+                              className="inline-flex h-7 px-2.5 items-center gap-1 rounded-md bg-highlight-soft text-highlight text-xs font-semibold hover:bg-highlight/15 transition-all outline-none"
+                            >
+                              View Receipt
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setUploadTxId(tx.id)}
+                              className="inline-flex h-7 px-2.5 items-center gap-1 rounded-md bg-success-soft text-emerald-700 dark:text-success border border-success/20 text-xs font-semibold hover:bg-success/15 transition-all outline-none shadow-sm"
+                            >
+                              Upload Receipt
+                            </button>
+                          )
+                        ) : (
+                          <span className="text-xs text-muted-foreground font-medium">—</span>
+                        )}
                       </TableCell>
                       <TableCell className="px-5 text-right">
                         {renderStatusBadge(tx.status, tx.failureReason)}
@@ -826,6 +862,7 @@ export function PaymentsClient({
                     <TableHead className="px-5">Location</TableHead>
                     <TableHead className="px-5 text-right">Quantity</TableHead>
                     <TableHead className="px-5 text-right">Total Amount</TableHead>
+                    <TableHead className="px-5 text-right">Receipt</TableHead>
                     <TableHead className="px-5 text-right">Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -854,6 +891,27 @@ export function PaymentsClient({
                         {formatRWF(tx.price * tx.quantity)}
                       </TableCell>
                       <TableCell className="px-5 text-right">
+                        {tx.imageName ? (
+                          <button
+                            type="button"
+                            onClick={() => setViewTx({ base64: tx.imageName!, productName: tx.productName })}
+                            className="inline-flex h-7 px-2.5 items-center gap-1 rounded-md bg-highlight-soft text-highlight text-xs font-semibold hover:bg-highlight/15 transition-all outline-none"
+                          >
+                            View Receipt
+                          </button>
+                        ) : tx.status === "completed" ? (
+                          <button
+                            type="button"
+                            onClick={() => setUploadTxId(tx.id)}
+                            className="inline-flex h-7 px-2.5 items-center gap-1 rounded-md bg-success-soft text-emerald-700 dark:text-success border border-success/20 text-xs font-semibold hover:bg-success/15 transition-all outline-none shadow-sm"
+                          >
+                            Upload
+                          </button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground font-medium">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="px-5 text-right">
                         {renderStatusBadge(tx.status, tx.failureReason)}
                       </TableCell>
 
@@ -864,6 +922,23 @@ export function PaymentsClient({
             )}
           </Panel>
         </div>
+      )}
+
+      {/* Receipt Dialogs */}
+      <ReceiptUploadDialog
+        isOpen={!!uploadTxId}
+        onClose={() => setUploadTxId(null)}
+        txId={uploadTxId || ""}
+        onUploadSuccess={handleUploadSuccess}
+      />
+
+      {viewTx && (
+        <ReceiptViewDialog
+          isOpen={!!viewTx}
+          onClose={() => setViewTx(null)}
+          receiptBase64={viewTx.base64}
+          txProductName={viewTx.productName}
+        />
       )}
     </div>
   );
