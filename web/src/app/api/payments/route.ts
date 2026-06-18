@@ -38,10 +38,17 @@ interface RequestBody {
   products?: (BackendProduct & { image?: string | null })[];
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId");
+
     const api = serverApi();
-    const backendTxs = await api.get<BackendTransaction[]>("/payments/transactions?limit=100");
+    const url = userId 
+      ? `/payments/transactions?limit=100&userId=${userId}` 
+      : "/payments/transactions?limit=100";
+
+    const backendTxs = await api.get<BackendTransaction[]>(url);
 
     const mappedTxs = backendTxs.map((tx) => {
       const products = (tx.transaction_products || []).map((p) => ({
@@ -64,6 +71,8 @@ export async function GET() {
         imageName: tx.item_photo_base64 || undefined,
         itemPhoto: tx.item_photo_base64 || undefined,
         receiptPhoto: tx.receipt_base64 || undefined,
+        receiptImage: tx.receipt_base64 || undefined,
+        isStocked: (tx as any).is_stocked || false,
         createdBy: tx.profiles?.full_name || "Unknown",
         createdAt: tx.created_at,
         locationId: tx.location_id,

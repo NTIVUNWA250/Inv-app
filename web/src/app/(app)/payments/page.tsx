@@ -21,7 +21,7 @@ export default async function PaymentsPage() {
     
     [locations, items, stock] = await Promise.all([
       api.get<Location[]>("/locations"),
-      api.get<Item[]>("/items"),
+      api.get<Item[]>("/items?limit=200"),
       api.get<StockLevel[]>("/stock"),
     ]);
   } catch (err) {

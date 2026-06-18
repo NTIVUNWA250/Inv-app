@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Wallet, Camera, Plus, X, Upload, FileText, Check, AlertTriangle } from "lucide-react";
+import { Wallet, Camera, Plus, X, Upload, FileText, Check, AlertTriangle, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,13 +23,14 @@ import {
     DialogDescription,
 } from "@/components/ui/dialog";
 
-import type { Location } from "@/lib/api/types";
+import type { Location, StockLevel } from "@/lib/api/types";
 
 interface CartItem {
     name: string;
     description: string;
     quantity: number;
     price: number;
+    locationId: string;
     image?: string;
 }
 
@@ -45,6 +46,7 @@ interface Transaction {
     imageName?: string;
     itemPhoto?: string;
     receiptPhoto?: string;
+    isStocked?: boolean;
     createdBy: string;
     createdAt: string;
     locationId?: string;
@@ -55,12 +57,11 @@ interface PaymentsClientProps {
     currentUserName: string;
     role: "admin" | "member";
     locations: Location[];
-    items: unknown[];
-    stock: unknown[];
-    catalogItems: { id?: string; name: string; description?: string | null; [key: string]: unknown }[];
+    items: { id?: string; name: string; description?: string | null; [key: string]: any }[];
+    stock: StockLevel[];
 }
 
-export function PaymentsClient({ currentUserName, role, locations, catalogItems }: PaymentsClientProps) {
+export function PaymentsClient({ currentUserName, role, locations, items, stock }: PaymentsClientProps) {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [activeTab, setActiveTab] = useState<"request" | "reports" | "history">("request");
     
@@ -75,11 +76,80 @@ export function PaymentsClient({ currentUserName, role, locations, catalogItems 
         locationId: "",
     });
     
-    const [localCatalog, setLocalCatalog] = useState<{ id?: string; name: string; description?: string | null; [key: string]: unknown }[]>(catalogItems || []);
+    const [localCatalog, setLocalCatalog] = useState<{ id?: string; name: string; description?: string | null; [key: string]: any }[]>(items || []);
+
+    // Debug: log stock and items data on mount to diagnose location auto-select
+    useEffect(() => {
+        console.debug("[PaymentsClient] items:", items.length, "| stock entries:", stock.length);
+        if (stock.length > 0) console.debug("[PaymentsClient] stock sample:", stock[0]);
+        if (items.length > 0) console.debug("[PaymentsClient] items sample:", items[0]);
+    }, []);
+
     const [statusMsg, setStatusMsg] = useState<{
         type: "success" | "error";
         text: string;
     } | null>(null);
+
+    const [isCustomProduct, setIsCustomProduct] = useState(false);
+    
+    // Budget management states
+    const [budget, setBudget] = useState<{
+        allocated_amount: number;
+        remaining_amount: number;
+        month: number;
+        year: number;
+    } | null>(null);
+    const [isEditingBudget, setIsEditingBudget] = useState(false);
+    const [isSavingBudget, setIsSavingBudget] = useState(false);
+    const [newAllocation, setNewAllocation] = useState("0");
+
+    const fetchBudget = async () => {
+        try {
+            const res = await fetch("/api/payments/budget");
+            if (res.ok) {
+                const data = await res.json();
+                setBudget(data);
+                setNewAllocation(String(data.allocated_amount));
+            }
+        } catch (error) {
+            console.log("Failed to load monthly budget info", error);
+        }
+    };
+
+    const handleSaveBudget = async () => {
+        setIsSavingBudget(true);
+        try {
+            const res = await fetch("/api/payments/budget", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    allocated_amount: parseFloat(newAllocation) || 0
+                })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setBudget(data);
+                setIsEditingBudget(false);
+                setStatusMsg({
+                    type: "success",
+                    text: "Monthly budget allocation updated successfully!"
+                });
+            } else {
+                setStatusMsg({
+                    type: "error",
+                    text: "Failed to update allocated budget"
+                });
+            }
+        } catch (error) {
+            console.error(error);
+            setStatusMsg({
+                type: "error",
+                text: "Error saving budget"
+            });
+        } finally {
+            setIsSavingBudget(false);
+        }
+    };
 
     // Post-approval webcam capture states
     const [capturingTx, setCapturingTx] = useState<Transaction | null>(null);
@@ -292,7 +362,8 @@ export function PaymentsClient({ currentUserName, role, locations, catalogItems 
         startFormCamera();
     };
 
-    // Fetch transactions and poll every 3 seconds for updates
+    // Fetch transactions and poll every 30 seconds for updates
+    // (admin-notifications already polls at 3s — no need to hammer the same endpoint here)
     useEffect(() => {
         const fetchTransactions = async () => {
             try {
@@ -307,9 +378,17 @@ export function PaymentsClient({ currentUserName, role, locations, catalogItems 
         };
 
         fetchTransactions();
-        const interval = setInterval(fetchTransactions, 3000);
+        if (role === "admin") {
+            fetchBudget();
+        }
+        const interval = setInterval(() => {
+            fetchTransactions();
+            if (role === "admin") {
+                fetchBudget();
+            }
+        }, 30000);
         return () => clearInterval(interval);
-    }, []);
+    }, [role]);
 
     // Format RWF currency
     const formatRWF = (amount: number) => {
@@ -339,12 +418,12 @@ export function PaymentsClient({ currentUserName, role, locations, catalogItems 
             setStatusMsg({ type: "error", text: "Recipient phone number is required before adding items." });
             return;
         }
-        if (!form.locationId) {
-            setStatusMsg({ type: "error", text: "Target storage location is required before adding items." });
-            return;
-        }
         if (!form.productName.trim()) {
             setStatusMsg({ type: "error", text: "Product name is required." });
+            return;
+        }
+        if (!form.locationId) {
+            setStatusMsg({ type: "error", text: "Please select a storage location for this item." });
             return;
         }
         const priceNum = parseFloat(form.price);
@@ -366,18 +445,20 @@ export function PaymentsClient({ currentUserName, role, locations, catalogItems 
             description: form.description.trim(),
             quantity: form.quantity,
             price: priceNum,
+            locationId: form.locationId,
             image: currentItemPhoto,
         };
 
         setCart((prev) => [...prev, newItem]);
         
-        // Reset item fields only, keep Recipient and Location locked in
+        // Reset item fields only, keep Recipient locked in
         setForm((prev) => ({
             ...prev,
             productName: "",
             description: "",
             quantity: 1,
             price: "",
+            locationId: "",
         }));
         setCurrentItemPhoto(null);
         stopFormCamera();
@@ -435,8 +516,19 @@ export function PaymentsClient({ currentUserName, role, locations, catalogItems 
             return;
         }
 
-        const selectedLoc = locations.find((l) => l.id === form.locationId);
-        const locationName = selectedLoc ? selectedLoc.name : "Default";
+        if (!form.recipient.trim()) {
+            setStatusMsg({ type: "error", text: "Recipient phone number is required." });
+            return;
+        }
+
+        // Use the first cart item's location as the transaction-level location (schema requirement)
+        const primaryLocationId = cart[0]?.locationId;
+        if (!primaryLocationId) {
+            setStatusMsg({ type: "error", text: "Each cart item must have a storage location." });
+            return;
+        }
+        const selectedLoc = locations.find((l) => l.id === primaryLocationId);
+        const locationName = selectedLoc ? selectedLoc.name : "";
 
         try {
             const res = await fetch("/api/payments", {
@@ -446,7 +538,7 @@ export function PaymentsClient({ currentUserName, role, locations, catalogItems 
                 },
                 body: JSON.stringify({
                     recipient: form.recipient.trim(),
-                    locationId: form.locationId,
+                    locationId: primaryLocationId,
                     locationName,
                     createdBy: currentUserName,
                     products: cart,
@@ -591,11 +683,23 @@ export function PaymentsClient({ currentUserName, role, locations, catalogItems 
                 </button>
             </div>
 
-            {statusMsg && (
-                <Alert variant={statusMsg.type === "success" ? "success" : "error"} dismissible>
-                    <AlertDescription>{statusMsg.text}</AlertDescription>
-                </Alert>
-            )}
+            <Dialog open={!!statusMsg} onOpenChange={(open) => !open && setStatusMsg(null)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            {statusMsg?.type === "success" ? (
+                                <CheckCircle2 className="h-5 w-5 text-success" />
+                            ) : (
+                                <AlertCircle className="h-5 w-5 text-destructive" />
+                            )}
+                            {statusMsg?.type === "success" ? "Success" : "Error"}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {statusMsg?.text}
+                        </DialogDescription>
+                    </DialogHeader>
+                </DialogContent>
+            </Dialog>
 
             {/* TAB 1: Request Expense */}
             {activeTab === "request" && (
@@ -604,43 +708,94 @@ export function PaymentsClient({ currentUserName, role, locations, catalogItems 
                     <div className="lg:col-span-2">
                         <Panel title="Assemble Expense Request">
                             <form onSubmit={handleSubmitCart} className="space-y-4 p-5">
-                                {/* Recipient & Location (Locked if items exist in cart) */}
-                                <div className="grid gap-4 sm:grid-cols-2">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="recipient">
-                                            Recipient Phone / Code
-                                            {cart.length > 0 && <span className="text-xs text-highlight ml-2">(Locked)</span>}
-                                        </Label>
-                                        <Input
-                                            id="recipient"
-                                            name="recipient"
-                                            required
-                                            disabled={cart.length > 0}
-                                            placeholder="e.g. +250 788 123 456"
-                                            value={form.recipient}
-                                            onChange={handleChange}
-                                        />
+                                {/* Row 1: Recipient (locked after first cart item) */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="recipient">
+                                        Recipient Phone / Code
+                                        {cart.length > 0 && <span className="text-xs text-highlight ml-2">(Locked)</span>}
+                                    </Label>
+                                    <Input
+                                        id="recipient"
+                                        name="recipient"
+                                        required
+                                        disabled={cart.length > 0}
+                                        placeholder="e.g. +250 788 123 456"
+                                        value={form.recipient}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+
+                                {/* Row 2: Product Name (with catalog dropdown/custom toggle) */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <Label htmlFor="productName">Product Name</Label>
+                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                            <input
+                                                type="checkbox"
+                                                id="isCustomProduct"
+                                                checked={isCustomProduct}
+                                                onChange={(e) => {
+                                                    setIsCustomProduct(e.target.checked);
+                                                    setForm((prev) => ({
+                                                        ...prev,
+                                                        productName: "",
+                                                        description: "",
+                                                        locationId: "",
+                                                    }));
+                                                }}
+                                                className="rounded border-border text-highlight focus:ring-highlight"
+                                            />
+                                            <Label htmlFor="isCustomProduct" className="cursor-pointer font-normal">
+                                                Not in catalog
+                                            </Label>
+                                        </div>
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="locationId">
-                                            Target Storage Location
-                                            {cart.length > 0 && <span className="text-xs text-highlight ml-2">(Locked)</span>}
-                                        </Label>
+                                    {!isCustomProduct ? (
                                         <select
-                                            id="locationId"
-                                            name="locationId"
-                                            required
-                                            disabled={cart.length > 0}
-                                            value={form.locationId}
-                                            onChange={handleChange}
-                                            className="flex h-10 w-full rounded-md border border-input bg-card/60 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-highlight disabled:opacity-70"
+                                            id="productName"
+                                            name="productName"
+                                            value={form.productName}
+                                            onChange={(e) => {
+                                                const selectedName = e.target.value;
+                                                const selectedItem = localCatalog.find((c) => c.name === selectedName);
+                                                // Auto-select stock location with highest qty (fallback to first entry)
+                                                let autoLocationId = "";
+                                                if (selectedItem?.id) {
+                                                    const stockEntries = stock.filter(
+                                                        (s) => s.item_id === selectedItem.id
+                                                    );
+                                                    if (stockEntries.length > 0) {
+                                                        const best = stockEntries.reduce((a, b) =>
+                                                            a.quantity >= b.quantity ? a : b
+                                                        );
+                                                        autoLocationId = best.location_id;
+                                                    }
+                                                }
+                                                setForm((prev) => ({
+                                                    ...prev,
+                                                    productName: selectedName,
+                                                    description: selectedItem?.description || "",
+                                                    locationId: autoLocationId,
+                                                }));
+                                            }}
+                                            className="flex h-10 w-full rounded-md border border-input bg-card/60 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-highlight"
                                         >
-                                            <option value="" disabled>Select a location...</option>
-                                            {locations.map((loc) => (
-                                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                                            <option value="" disabled>Select a registered product...</option>
+                                            {localCatalog.map((item, idx) => (
+                                                <option key={item.id || idx} value={item.name}>
+                                                    {item.name}
+                                                </option>
                                             ))}
                                         </select>
-                                    </div>
+                                    ) : (
+                                        <Input
+                                            id="productName"
+                                            name="productName"
+                                            placeholder="e.g. Verlet Core Board"
+                                            value={form.productName}
+                                            onChange={handleChange}
+                                        />
+                                    )}
                                 </div>
 
                                 <div className="border-t border-border/40 my-4 pt-4" />
@@ -649,17 +804,8 @@ export function PaymentsClient({ currentUserName, role, locations, catalogItems 
                                 <div className="space-y-3 bg-surface/20 p-4 rounded-lg border border-border/40">
                                     <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Item Details</h3>
                                     
+                                    {/* Row: Description & Location (per-item, location auto-filled from stock) */}
                                     <div className="grid gap-4 sm:grid-cols-2">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="productName">Product Name</Label>
-                                            <Input
-                                                id="productName"
-                                                name="productName"
-                                                placeholder="e.g. Verlet Core Board"
-                                                value={form.productName}
-                                                onChange={handleChange}
-                                            />
-                                        </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="description">Product Description</Label>
                                             <Input
@@ -669,6 +815,34 @@ export function PaymentsClient({ currentUserName, role, locations, catalogItems 
                                                 value={form.description}
                                                 onChange={handleChange}
                                             />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="locationId">
+                                                Storage Location
+                                                {form.locationId && !isCustomProduct && (
+                                                    <span className="text-xs text-success ml-2">(Auto-selected)</span>
+                                                )}
+                                            </Label>
+                                            <select
+                                                id="locationId"
+                                                name="locationId"
+                                                required
+                                                value={form.locationId}
+                                                onChange={handleChange}
+                                                className="flex h-10 w-full rounded-md border border-input bg-card/60 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-highlight"
+                                            >
+                                                <option value="" disabled>Select a location...</option>
+                                                {locations.filter((loc) => {
+                                                    if (!form.productName || isCustomProduct) return true;
+                                                    const selectedItem = localCatalog.find(c => c.name === form.productName);
+                                                    if (!selectedItem) return true;
+                                                    const stockEntries = stock.filter(s => s.item_id === selectedItem.id);
+                                                    if (stockEntries.length === 0) return true; // Show all if no stock exists
+                                                    return stockEntries.some(s => s.location_id === loc.id);
+                                                }).map((loc) => (
+                                                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                                                ))}
+                                            </select>
                                         </div>
                                     </div>
 
@@ -918,12 +1092,112 @@ export function PaymentsClient({ currentUserName, role, locations, catalogItems 
                                 <span className="text-3xl font-extrabold font-mono text-foreground tracking-tight">
                                     {formatRWF(monthlyTotal)}
                                 </span>
-                                <span className="text-xs text-muted-foreground mt-1.5">
+                                <span className="text-xs text-muted-foreground mt-1.5 mb-4">
                                     This month&apos;s total for {monthlyCompleted.length} completed disbursement request(s).
                                 </span>
+                                <div className="mt-2">
+                                    <a
+                                        href="/api/payments/reports/export"
+                                        download="corporate_expense_report.csv"
+                                        className="inline-flex items-center gap-2 rounded-md bg-highlight text-highlight-foreground px-4 py-2 text-sm font-semibold hover:bg-highlight/90 transition-colors"
+                                    >
+                                        <FileText className="h-4 w-4" />
+                                        Download CSV Report
+                                    </a>
+                                </div>
                             </div>
                         </Panel>
                     </div>
+
+                    {role === "admin" && (
+                        <Panel title="Monthly Budget Allocation">
+                            <div className="p-5 space-y-4">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <div className="space-y-1">
+                                        <h3 className="font-serif text-base text-foreground font-medium">
+                                            Active Budget ({budget ? `${budget.month}/${budget.year}` : "Current Month"})
+                                        </h3>
+                                        <p className="text-xs text-muted-foreground font-normal">
+                                            Track and limit total corporate spending disbursements for this month.
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {isEditingBudget ? (
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={newAllocation}
+                                                    onChange={(e) => setNewAllocation(e.target.value)}
+                                                    className="w-36 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                                    placeholder="Allocation (RWF)"
+                                                />
+                                                <button
+                                                    onClick={handleSaveBudget}
+                                                    disabled={isSavingBudget}
+                                                    className="inline-flex h-8 items-center justify-center rounded-md bg-highlight text-highlight-foreground px-3 text-xs font-semibold hover:bg-highlight/90 disabled:opacity-50 transition-colors"
+                                                >
+                                                    {isSavingBudget ? "Saving..." : "Save"}
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setIsEditingBudget(false);
+                                                        setNewAllocation(budget ? String(budget.allocated_amount) : "0");
+                                                    }}
+                                                    className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-card px-3 text-xs font-semibold text-foreground hover:bg-hover transition-colors"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={() => setIsEditingBudget(true)}
+                                                className="inline-flex h-8 items-center justify-center rounded-md bg-highlight text-highlight-foreground px-3 text-xs font-semibold hover:bg-highlight/90 transition-colors"
+                                            >
+                                                Set Allocation
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {budget && budget.allocated_amount > 0 && (
+                                    <div className="space-y-3 pt-2">
+                                        <div className="grid grid-cols-2 text-xs">
+                                            <div>
+                                                <span className="text-muted-foreground block font-medium">Allocated Limit</span>
+                                                <span className="font-mono text-base font-semibold text-foreground">
+                                                    {formatRWF(budget.allocated_amount)}
+                                                </span>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-muted-foreground block font-medium">Remaining Balance</span>
+                                                <span className="font-mono text-base font-semibold text-highlight">
+                                                    {formatRWF(budget.remaining_amount)}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Progress Bar Gauge */}
+                                        <div className="relative h-2 w-full overflow-hidden rounded-full bg-surface-2 border border-border">
+                                            <div
+                                                className={`h-full rounded-full transition-all duration-500 ${((budget.allocated_amount - budget.remaining_amount) / budget.allocated_amount * 100) > 85
+                                                    ? "bg-destructive"
+                                                    : ((budget.allocated_amount - budget.remaining_amount) / budget.allocated_amount * 100) > 60
+                                                        ? "bg-warning"
+                                                        : "bg-success"
+                                                }`}
+                                                style={{ width: `${Math.min(100, ((budget.allocated_amount - budget.remaining_amount) / budget.allocated_amount * 100))}%` }}
+                                            />
+                                        </div>
+                                        <div className="flex justify-between text-[10px] text-muted-foreground font-medium">
+                                            <span>{((budget.allocated_amount - budget.remaining_amount) / budget.allocated_amount * 100).toFixed(0)}% utilized</span>
+                                            <span>{formatRWF(budget.allocated_amount - budget.remaining_amount)} spent</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </Panel>
+                    )}
 
                     {/* Stock Registry Verification Tracker */}
                     <Panel title="My Request Stock Registry Checklist">
@@ -1010,6 +1284,7 @@ export function PaymentsClient({ currentUserName, role, locations, catalogItems 
                                         <TableHead className="px-5">Location</TableHead>
                                         <TableHead className="px-5 text-right">Total Price</TableHead>
                                         <TableHead className="px-5 text-right">Status</TableHead>
+                                        <TableHead className="px-5 text-right">Stock</TableHead>
                                         <TableHead className="px-5 text-right">Item Photo</TableHead>
                                         <TableHead className="px-5 text-right">Receipt Photo</TableHead>
                                     </TableRow>
@@ -1017,7 +1292,7 @@ export function PaymentsClient({ currentUserName, role, locations, catalogItems 
                                 <TableBody>
                                     {transactions.map((tx) => {
                                         const totalAmt = tx.price; // Sum mapped from route proxy
-                                        const hasReceipt = !!tx.imageName;
+                                        const hasReceipt = !!tx.receiptPhoto;
 
                                         return (
                                             <TableRow key={tx.id}>
@@ -1054,6 +1329,23 @@ export function PaymentsClient({ currentUserName, role, locations, catalogItems 
                                                 </TableCell>
                                                 <TableCell className="px-5 text-right">
                                                     {renderStatusBadge(tx.status)}
+                                                </TableCell>
+                                                <TableCell className="px-5 text-right">
+                                                    {tx.status === "completed" ? (
+                                                        tx.isStocked ? (
+                                                            <span className="inline-flex items-center gap-1 rounded-full bg-success-soft text-emerald-700 dark:text-success border border-success/20 px-2 py-0.5 text-[10px] font-semibold">
+                                                                <CheckCircle2 className="h-3 w-3" />
+                                                                In Stock
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-1 rounded-full bg-warning-soft text-amber-700 dark:text-warning border border-warning/20 px-2 py-0.5 text-[10px] font-semibold animate-pulse">
+                                                                <AlertCircle className="h-3 w-3" />
+                                                                Pending
+                                                            </span>
+                                                        )
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground font-medium">—</span>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell className="px-5 text-right">
                                                     {tx.itemPhoto ? (

@@ -75,28 +75,30 @@ export function AdminNotifications({ role, currentUserName }: AdminNotifications
         };
 
         fetchTransactions();
-        const interval = setInterval(fetchTransactions, 3000);
+        const interval = setInterval(fetchTransactions, 30000);
         return () => clearInterval(interval);
     }, []);
 
-    // Fetch balance from server and poll every 10 seconds
+    // Fetch budget from server and poll every 30 seconds (admin only)
     useEffect(() => {
+        if (role !== "admin") return;
+
         const fetchBalance = async () => {
             try {
-                const res = await fetch("/api/payments/balance");
+                const res = await fetch("/api/payments/budget");
                 if (res.ok) {
                     const data = await res.json();
-                    setBalance(data);
+                    setBalance({ availableBalance: String(data.remaining_amount || 0), currency: "RWF" });
                 }
             } catch (e) {
-                console.error("Failed to load balance for admin notifications", e);
+                console.error("Failed to load budget for admin notifications", e);
             }
         };
 
         fetchBalance();
-        const interval = setInterval(fetchBalance, 10000);
+        const interval = setInterval(fetchBalance, 30000);
         return () => clearInterval(interval);
-    }, []);
+    }, [role]);
 
     // Start Camera for Receipt snap
     const startReceiptCamera = (tx: Transaction) => {
@@ -479,14 +481,14 @@ export function AdminNotifications({ role, currentUserName }: AdminNotifications
                         <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-2">
                             <Button
                                 variant="outline"
-                                className="w-full sm:w-auto border-destructive/30 hover:bg-destructive/10 text-destructive transition-colors"
+                                className="w-full sm:w-36 border-destructive/30 hover:bg-destructive/10 text-destructive transition-colors"
                                 onClick={() => handleResolve(selectedTx.id, "rejected")}
                             >
                                 <XCircle className="h-4 w-4" />
                                 Reject
                             </Button>
                             <Button
-                                className="w-full sm:w-auto transition-colors"
+                                className="w-full sm:w-36 transition-colors"
                                 onClick={() => handleResolve(selectedTx.id, "approved")}
                             >
                                 <CheckCircle2 className="h-4 w-4" />

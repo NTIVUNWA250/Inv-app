@@ -143,20 +143,51 @@ paymentsRouter.post("/resolve", requireAdminOrCashier, asyncHandler(async (req, 
     return res.json({ transactionId: id, status: "rejected" })
   }
 
-  // 2. Dispatch MoMo request to pay (USSD push prompt) for approved payment
+  // 2. Handle approval & verify monthly budget
+  const txDate = new Date(tx.created_at)
+  const year = txDate.getFullYear()
+  const month = txDate.getMonth() + 1
+
+  const { data: budget, error: budgetErr } = await req.supabase
+    .from("monthly_budgets")
+    .select("*")
+    .eq("year", year)
+    .eq("month", month)
+    .maybeSingle()
+
+  if (budgetErr) throw budgetErr
+  if (!budget || Number(budget.remaining_amount) < Number(tx.amount)) {
+    const reason = !budget ? "NO_BUDGET_ALLOCATED" : "INSUFFICIENT_MONTHLY_BUDGET"
+
+    await req.supabase.from("corporate_transactions").update({
+      status: "failed",
+      failure_reason: reason
+    }).eq("id", id)
+
+    throw new HttpError(400, !budget ? "No budget allocated for this month." : "Insufficient monthly budget balance", "insufficient_budget")
+  }
+
+  // Deduction of funds immediately (Hold / Reserve state)
+  const reservedRemaining = Number(budget.remaining_amount) - Number(tx.amount)
+  await req.supabase.from("monthly_budgets").update({ remaining_amount: reservedRemaining }).eq("id", budget.id)
+
+  // Linking the budget reference to this transaction record
+  await req.supabase.from("corporate_transactions").update({ budget_id: budget.id }).eq("id", tx.id)
+
+  // 3. Dispatch MoMo disbursement (USSD push prompt / transfer)
   try {
-    console.log(`[Payments] Dispatching MoMo Request to Pay for Tx: ${tx.id}...`)
-    const momoRef = await momo.requestToPay(tx.recipient_phone, tx.amount, tx.id)
+    console.log(`[Payments] Dispatching MoMo disbursement for Tx: ${tx.id}...`)
+    const momoRef = await momo.transfer(tx.recipient_phone, tx.amount, tx.id)
 
     await req.supabase.from("corporate_transactions").update({ status: "processing", momo_ref: momoRef }).eq("id", tx.id)
 
-    console.log(`[Payments] Polling Collection status for Ref: ${momoRef}...`)
-    const statusRef = await momo.getCollectionStatus(momoRef)
+    console.log(`[Payments] Polling MoMo status for Ref: ${momoRef}...`)
+    const statusRef = await momo.getTransferStatus(momoRef)
 
     if (statusRef.status === "SUCCESSFUL") {
       await req.supabase.from("corporate_transactions").update({ status: "completed" }).eq("id", tx.id)
 
-      // 3. Update stock levels for all products in the cart
+      // 4. Update stock levels for all products in the cart (strictly gated on payment success)
       const products = tx.transaction_products || []
       for (const product of products) {
         let itemId: string
@@ -172,7 +203,7 @@ paymentsRouter.post("/resolve", requireAdminOrCashier, asyncHandler(async (req, 
         const { error: moveErr } = await req.supabase.from("stock_movements").insert({
           item_id: itemId,
           location_id: tx.location_id,
-          user_id: req.user.id,
+          user_id: tx.user_id,
           delta: product.quantity,
           capacity_delta: product.quantity,
           reason: "initial",
@@ -185,14 +216,39 @@ paymentsRouter.post("/resolve", requireAdminOrCashier, asyncHandler(async (req, 
 
       return res.json({ transactionId: tx.id, status: "completed" })
     } else {
-      const reason = statusRef.reason?.message || "Transfer failed";
-      await req.supabase.from("corporate_transactions").update({ status: "failed", failure_reason: reason }).eq("id", tx.id)
-      return res.status(422).json({ transactionId: tx.id, status: "failed", error: reason })
+      // Rollback budget
+      const { data: currentBudget } = await req.supabase.from("monthly_budgets").select("remaining_amount").eq("id", budget.id).single()
+      const refundedRemaining = Number(currentBudget?.remaining_amount || 0) + Number(tx.amount)
+      await req.supabase.from("monthly_budgets").update({
+        remaining_amount: refundedRemaining
+      }).eq("id", budget.id)
+
+      // Store MoMo failure reason code (e.g. INSUFFICIENT_FUNDS, TIMEOUT, etc.)
+      const failureReason = statusRef.reason?.code || "MOMO_PAYMENT_FAILED"
+
+      await req.supabase.from("corporate_transactions").update({
+        status: "failed",
+        failure_reason: failureReason
+      }).eq("id", tx.id)
+
+      return res.status(400).json({ error: "MoMo Checkout payment was unsuccessful", code: "momo_payment_failed", reason: failureReason })
     }
-  } catch (err: any) {
-    const reason = err.message || "API connection down";
-    await req.supabase.from("corporate_transactions").update({ status: "failed", failure_reason: reason }).eq("id", tx.id)
-    throw err
+  } catch (momoErr: any) {
+    console.error("[Payments] Resolution failed:", momoErr)
+
+    // Rollback budget
+    const { data: currentBudget } = await req.supabase.from("monthly_budgets").select("remaining_amount").eq("id", budget.id).single()
+    const refundedRemaining = Number(currentBudget?.remaining_amount || 0) + Number(tx.amount)
+
+    await req.supabase.from("monthly_budgets").update({ remaining_amount: refundedRemaining }).eq("id", budget.id)
+
+    const failureReason = momoErr.message || "GATEWAY_DISPATCH_ERROR"
+    await req.supabase.from("corporate_transactions").update({
+      status: "failed",
+      failure_reason: failureReason
+    }).eq("id", tx.id)
+
+    throw momoErr
   }
 }))
 
@@ -221,23 +277,115 @@ paymentsRouter.patch("/transactions/:id/receipt", asyncHandler(async (req, res) 
   res.json(data)
 }))
 
-const listQuerySchema = z.object({ limit: z.coerce.number().int().positive().max(200).default(50), offset: z.coerce.number().int().nonnegative().default(0), })
+const listQuerySchema = z.object({
+  limit: z.coerce.number().int().positive().max(200).default(50),
+  offset: z.coerce.number().int().nonnegative().default(0),
+  userId: z.string().uuid().optional(),
+})
 
 paymentsRouter.get("/transactions", asyncHandler(async (req, res) => {
-  const { limit, offset } = listQuerySchema.parse(req.query)
+  const { limit, offset, userId } = listQuerySchema.parse(req.query)
   const { data: me } = await req.supabase.from("profiles").select("role, fallback_role").eq("id", req.user.id).single()
 
   const isAdminOrCashier = me?.role === "admin" || me?.fallback_role === "cashier"
+
+  if (!isAdminOrCashier && userId && userId !== req.user.id) {
+    throw new HttpError(403, "You do not have permission to view another user's transactions.", "forbidden")
+  }
 
   let query = req.supabase.from("corporate_transactions").select(`*, profiles:user_id(full_name, role, fallback_role), transaction_products(*), locations:location_id(name)`).order("created_at", { ascending: false }).range(offset, offset + limit - 1)
 
   if (!isAdminOrCashier) {
     query = query.eq("user_id", req.user.id)
+  } else if (userId) {
+    query = query.eq("user_id", userId)
   }
 
   const { data, error } = await query
   if (error) throw error
-  res.json(data)
+
+  // Query stock movements to see which transactions have been stocked
+  const { data: movements, error: moveErr } = await req.supabase
+    .from("stock_movements")
+    .select("note")
+    .like("note", "Auto-purchased via corporate transaction %")
+
+  if (moveErr) throw moveErr
+
+  const stockedTxIds = new Set<string>()
+  if (movements) {
+    movements.forEach((m) => {
+      const match = m.note?.match(/Auto-purchased via corporate transaction ([a-f0-9-]{36})/)
+      if (match && match[1]) {
+        stockedTxIds.add(match[1])
+      }
+    })
+  }
+
+  const mapped = (data || []).map((tx) => ({
+    ...tx,
+    is_stocked: stockedTxIds.has(tx.id)
+  }))
+
+  res.json(mapped)
+}))
+
+const budgetSchema = z.object({
+  allocated_amount: z.number().nonnegative()
+})
+
+paymentsRouter.get("/budgets", requireAdminOrCashier, asyncHandler(async (req, res) => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth() + 1
+
+  const { data: budget, error } = await req.supabase.from("monthly_budgets").select("*").eq("year", year).eq("month", month).maybeSingle()
+
+  if (error) throw error
+
+  res.json(budget || { allocated_amount: 0, remaining_amount: 0, year, month })
+}))
+
+paymentsRouter.post("/budgets", requireAdminOrCashier, asyncHandler(async (req, res) => {
+  const { allocated_amount } = budgetSchema.parse(req.body)
+
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth() + 1
+
+  const { data: existing, error: getErr } = await req.supabase.from("monthly_budgets").select("*").eq("year", year).eq("month", month).maybeSingle()
+
+  if (getErr) throw getErr
+
+  let result
+
+  if (existing) {
+    const difference = allocated_amount - Number(existing.allocated_amount)
+    const newRemaining = Number(existing.remaining_amount) + difference
+
+    const { data, error } = await req.supabase.from("monthly_budgets").update({
+      allocated_amount: Number(allocated_amount),
+      remaining_amount: Math.max(0, newRemaining),
+      updated_at: new Date().toISOString()
+    }).eq("id", existing.id).select("*").single()
+
+    if (error) throw error
+
+    result = data
+  } else {
+    const { data, error } = await req.supabase.from("monthly_budgets").insert({
+      year,
+      month,
+      allocated_amount,
+      remaining_amount: allocated_amount
+    }).select().single()
+
+    if (error) throw error
+
+    result = data
+  }
+
+  res.json(result)
 }))
 
 paymentsRouter.get("/reports/export", requireAdminOrCashier, asyncHandler(async (req, res) => {
