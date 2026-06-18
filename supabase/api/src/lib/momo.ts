@@ -82,9 +82,8 @@ export class MoMoClient {
             console.log(`Provisioned Sandbox: USER = ${uuid}, KEY = ${apiKey}`)
             console.log("Please save these in your .env as MOMO_API_USER and MOMO_API_KEY")
         } catch (err) {
-            console.error("[MTN MoMo] Provision Failed, falling back to mock mode:", err)
-            this.isMock = true;
-
+            console.error("[MTN MoMo] Provision Failed:", err)
+            throw err
         }
     }
 
@@ -230,13 +229,12 @@ export class MoMoClient {
             });
 
             if (res.status !== 202) { 
-                console.warn(`[MTN MoMo] Collections Request rejected with status ${res.status}. Falling back to mock simulation.`);
-                return momoRef;
+                throw new Error(`MoMo collections request rejected: status ${res.status}`)
             }
             return momoRef
         } catch (err) {
-            console.error("[MTN MoMo] Collections API error, falling back to mock:", err);
-            return momoRef;
+            console.error("[MTN MoMo] Collections API error:", err);
+            throw err;
         }
     }
 
@@ -262,8 +260,8 @@ export class MoMoClient {
             }
             return (await res.json()) as MoMoTransferStatusResponse;
         } catch (err) {
-            console.error("[MTN MoMo] Error querying collection status, returning SUCCESSFUL mock simulation:", err);
-            return { status: "SUCCESSFUL" };
+            console.error("[MTN MoMo] Error querying collection status:", err);
+            throw err;
         }
     }
 }
