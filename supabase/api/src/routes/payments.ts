@@ -174,13 +174,13 @@ paymentsRouter.post("/resolve", requireAdminOrCashier, asyncHandler(async (req, 
 
   // 5. Dispatch MoMo request to pay (USSD push prompt)
   try {
-    console.log(`[Payments] Dispatching MoMo Request to Pay for Tx: ${tx.id}...`)
-    const momoRef = await momo.requestToPay(tx.recipient_phone, tx.amount, tx.id)
+    console.log(`[Payments] Dispatching MoMo disbursement for Tx: ${tx.id}...`)
+    const momoRef = await momo.transfer(tx.recipient_phone, tx.amount, tx.id)
 
     await req.supabase.from("corporate_transactions").update({ status: "processing", momo_ref: momoRef }).eq("id", tx.id)
 
-    console.log(`[Payments] Polling Collection status for Ref: ${momoRef}...`)
-    const statusRef = await momo.getCollectionStatus(momoRef)
+    console.log(`[Payments] Polling MoMo status for Ref: ${momoRef}...`)
+    const statusRef = await momo.getTransferStatus(momoRef)
 
     if (statusRef.status === "SUCCESSFUL") {
       await req.supabase.from("corporate_transactions").update({ status: "completed" }).eq("id", tx.id)
