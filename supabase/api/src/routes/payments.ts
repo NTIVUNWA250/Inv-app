@@ -116,18 +116,42 @@ const resolvePaymentSchema = z.object({
 paymentsRouter.post("/resolve", requireAdminOrCashier, asyncHandler(async (req, res) => {
   const { id, status } = resolvePaymentSchema.parse(req.body)
 
-  // 1. Fetch transaction and check if it's pending
+  // 1. Fetch transaction
   const { data: tx, error: txErr } = await req.supabase
     .from("corporate_transactions")
     .select("*, transaction_products(*)")
     .eq("id", id)
     .single()
 
+  if (txErr || !tx) {
+    throw new HttpError(404, "Transaction not found", "not_found")
+  }
+
+  // 2. Validate pending status first
+  if (tx.status !== "pending") {
+    throw new HttpError(400, "Transaction has already been resolved", "already_resolved")
+  }
+
+  // 3. Handle rejection immediately without affecting budget
+  if (status === "rejected") {
+    await req.supabase.from("corporate_transactions").update({
+      status: "failed",
+      failure_reason: "REJECTED_BY_ADMIN"
+    }).eq("id", id)
+    return res.json({ transactionId: id, status: "rejected" })
+  }
+
+  // 4. Handle approval & verify monthly budget
   const txDate = new Date(tx.created_at)
   const year = txDate.getFullYear()
   const month = txDate.getMonth() + 1
 
-  const { data: budget, error: budgetErr } = await req.supabase.from("monthly_budgets").select("*").eq("year", year).eq("month", month).maybeSingle()
+  const { data: budget, error: budgetErr } = await req.supabase
+    .from("monthly_budgets")
+    .select("*")
+    .eq("year", year)
+    .eq("month", month)
+    .maybeSingle()
 
   if (budgetErr) throw budgetErr
   if (!budget || Number(budget.remaining_amount) < Number(tx.amount)) {
@@ -138,32 +162,17 @@ paymentsRouter.post("/resolve", requireAdminOrCashier, asyncHandler(async (req, 
       failure_reason: reason
     }).eq("id", id)
 
-    throw new HttpError(400, !budget ? "No budget allocated for this month." : "Insufficient monthl budget balance", "insufficient_budget")
+    throw new HttpError(400, !budget ? "No budget allocated for this month." : "Insufficient monthly budget balance", "insufficient_budget")
   }
 
   // Deduction of funds immediately (Hold / Reserve state)
-
   const reservedRemaining = Number(budget.remaining_amount) - Number(tx.amount)
   await req.supabase.from("monthly_budgets").update({ remaining_amount: reservedRemaining }).eq("id", budget.id)
 
-  // Linkin the budget reference to this transaction record
+  // Linking the budget reference to this transaction record
   await req.supabase.from("corporate_transactions").update({ budget_id: budget.id }).eq("id", tx.id)
 
-  if (txErr || !tx) {
-    throw new HttpError(404, "Transaction not found", "not_found")
-  }
-
-  if (tx.status !== "pending") {
-    throw new HttpError(400, "Transaction has already been resolved", "already_resolved")
-  }
-
-  if (status === "rejected") {
-    // Update status to failed
-    await req.supabase.from("corporate_transactions").update({ status: "failed" }).eq("id", id)
-    return res.json({ transactionId: id, status: "rejected" })
-  }
-
-  // 2. Dispatch MoMo request to pay (USSD push prompt) for approved payment
+  // 5. Dispatch MoMo request to pay (USSD push prompt)
   try {
     console.log(`[Payments] Dispatching MoMo Request to Pay for Tx: ${tx.id}...`)
     const momoRef = await momo.requestToPay(tx.recipient_phone, tx.amount, tx.id)
@@ -176,7 +185,7 @@ paymentsRouter.post("/resolve", requireAdminOrCashier, asyncHandler(async (req, 
     if (statusRef.status === "SUCCESSFUL") {
       await req.supabase.from("corporate_transactions").update({ status: "completed" }).eq("id", tx.id)
 
-      // 3. Update stock levels
+      // 6. Update stock levels (strictly gated on payment success)
       const product = tx.transaction_products?.[0]
       if (product) {
         let itemId: string
@@ -205,22 +214,27 @@ paymentsRouter.post("/resolve", requireAdminOrCashier, asyncHandler(async (req, 
 
       return res.json({ transactionId: tx.id, status: "completed" })
     } else {
+      // Rollback budget
       const { data: currentBudget } = await req.supabase.from("monthly_budgets").select("remaining_amount").eq("id", budget.id).single()
       const refundedRemaining = Number(currentBudget?.remaining_amount || 0) + Number(tx.amount)
       await req.supabase.from("monthly_budgets").update({
         remaining_amount: refundedRemaining
       }).eq("id", budget.id)
 
+      // Store MoMo failure reason code (e.g. INSUFFICIENT_FUNDS, TIMEOUT, etc.)
+      const failureReason = statusRef.reason?.code || "MOMO_PAYMENT_FAILED"
+
       await req.supabase.from("corporate_transactions").update({
         status: "failed",
-        failure_reason: "MOMO_PAYMENT_FAILED"
+        failure_reason: failureReason
       }).eq("id", tx.id)
 
-      return res.status(400).json({ error: "MoMo Checkout payment was unsuccessful", code: "momo_payment_failed" })
+      return res.status(400).json({ error: "MoMo Checkout payment was unsuccessful", code: "momo_payment_failed", reason: failureReason })
     }
   } catch (momoErr) {
     console.error("[Payments] Resolution failed:", momoErr)
 
+    // Rollback budget
     const { data: currentBudget } = await req.supabase.from("monthly_budgets").select("remaining_amount").eq("id", budget.id).single()
     const refundedRemaining = Number(currentBudget?.remaining_amount || 0) + Number(tx.amount)
 
@@ -234,6 +248,7 @@ paymentsRouter.post("/resolve", requireAdminOrCashier, asyncHandler(async (req, 
     throw momoErr
   }
 }))
+
 
 const listQuerySchema = z.object({ limit: z.coerce.number().int().positive().max(200).default(50), offset: z.coerce.number().int().nonnegative().default(0), })
 

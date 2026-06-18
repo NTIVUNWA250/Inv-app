@@ -31,7 +31,9 @@ interface Transaction {
   createdAt: string;
   locationId?: string;
   locationName?: string;
+  failureReason?: string | null;
 }
+
 
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -227,7 +229,7 @@ export function PaymentsClient({
   }, [role]);
 
   // Render a beautifully styled status badge
-  const renderStatusBadge = (status: Transaction["status"]) => {
+  const renderStatusBadge = (status: Transaction["status"], failureReason?: string | null) => {
     const styles = {
       pending: "bg-warning-soft text-amber-700 dark:text-warning border-warning/30",
       processing: "bg-info-soft text-sky-700 dark:text-info border-info/30 animate-pulse",
@@ -255,13 +257,20 @@ export function PaymentsClient({
 
     return (
       <span
+        title={status === "failed" && failureReason ? `Failure Reason: ${failureReason}` : undefined}
         className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold transition-all ${style}`}
       >
         <span className={`h-1.5 w-1.5 rounded-full ${dotStyle}`} />
         {label}
+        {status === "failed" && failureReason && (
+          <span className="text-[9px] font-normal opacity-85 ml-1 border-l border-red-700/20 pl-1.5">
+            {failureReason}
+          </span>
+        )}
       </span>
     );
   };
+
 
   // Format RWF currency
   const formatRWF = (amount: number) => {
@@ -675,7 +684,7 @@ export function PaymentsClient({
                         {formatRWF(tx.price)}
                       </TableCell>
                       <TableCell className="px-5 text-right">
-                        {renderStatusBadge(tx.status)}
+                        {renderStatusBadge(tx.status, tx.failureReason)}
                       </TableCell>
                       <TableCell className="px-5 text-right font-mono text-[11px] text-muted-foreground">
                         {new Date(tx.createdAt).toLocaleDateString()}
@@ -760,13 +769,12 @@ export function PaymentsClient({
                     {/* Progress Bar Gauge */}
                     <div className="relative h-2 w-full overflow-hidden rounded-full bg-surface-2 border border-border">
                       <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          percentUsed > 85
-                            ? "bg-destructive"
-                            : percentUsed > 60
+                        className={`h-full rounded-full transition-all duration-500 ${percentUsed > 85
+                          ? "bg-destructive"
+                          : percentUsed > 60
                             ? "bg-warning"
                             : "bg-success"
-                        }`}
+                          }`}
                         style={{ width: `${Math.min(100, percentUsed)}%` }}
                       />
                     </div>
@@ -846,8 +854,9 @@ export function PaymentsClient({
                         {formatRWF(tx.price * tx.quantity)}
                       </TableCell>
                       <TableCell className="px-5 text-right">
-                        {renderStatusBadge(tx.status)}
+                        {renderStatusBadge(tx.status, tx.failureReason)}
                       </TableCell>
+
                     </TableRow>
                   ))}
                 </TableBody>

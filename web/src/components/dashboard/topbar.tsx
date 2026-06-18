@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { SearchBox } from "./search-box";
 import { ScanButton } from "./scan-button";
 import { UserMenu } from "./user-menu";
-import { AdminNotifications } from "./admin-notifications";
+import { Notifications } from "./notifications";
 import { VerletLogo } from "@/components/ui/verlet-logo";
 import { Badge } from "@/components/ui/badge";
 
@@ -30,14 +30,16 @@ export function Topbar({ name, email, role }: TopbarProps) {
 
       <div className="ml-auto flex items-center gap-3">
         <ScanButton />
-        {role === "admin" ? (
-          <>
-            <AdminNotifications />
-            <Badge variant="chip" className="bg-highlight-soft text-highlight">
-              Admin
-            </Badge>
-          </>
-        ) : null}
+
+        {/* Render notification bell for all roles (admins & employees) */}
+        <Notifications role={role} name={name} />
+
+        {role === "admin" && (
+          <Badge variant="chip" className="bg-highlight-soft text-highlight font-semibold">
+            Admin
+          </Badge>
+        )}
+
         <UserMenu name={name} email={email} />
       </div>
     </header>

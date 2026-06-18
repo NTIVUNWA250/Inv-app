@@ -22,6 +22,7 @@ export async function GET() {
         createdAt: tx.created_at,
         locationId: tx.location_id,
         locationName: tx.locations?.name || "",
+        failureReason: tx.failure_reason || null,
       };
     });
 
@@ -33,6 +34,7 @@ export async function GET() {
     return NextResponse.json({ error: msg }, { status });
   }
 }
+
 
 export async function POST(request: Request) {
   try {
