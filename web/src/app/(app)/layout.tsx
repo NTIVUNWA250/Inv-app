@@ -39,7 +39,7 @@ export default async function AppLayout({
         <Topbar name={name} email={email} role={role} />
         <main className="flex-1 px-4 py-6 pb-24 sm:px-6 lg:px-8 md:pb-6">{children}</main>
       </div>
-      <BottomNav role={role} />
+      <BottomNav role={role} hasPaymentPermission={!!profile?.has_payment_permission} />
     </div>
   );
 }
