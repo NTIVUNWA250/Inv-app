@@ -30,14 +30,12 @@ export function Topbar({ name, email, role }: TopbarProps) {
 
       <div className="ml-auto flex items-center gap-3">
         <ScanButton />
-        {role === "admin" ? (
-          <>
-            <AdminNotifications />
-            <Badge variant="chip" className="bg-highlight-soft text-highlight">
-              Admin
-            </Badge>
-          </>
-        ) : null}
+        <AdminNotifications role={role} currentUserName={name} />
+        {role === "admin" && (
+          <Badge variant="chip" className="bg-highlight-soft text-highlight">
+            Admin
+          </Badge>
+        )}
         <UserMenu name={name} email={email} />
       </div>
     </header>

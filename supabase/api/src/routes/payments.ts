@@ -68,44 +68,50 @@ paymentsRouter.patch("/profiles/:id/payment-settings", requireAdmin, asyncHandle
   res.json(data)
 }))
 
+function calculateTotalAmount(req: Request, _res: Response, next: NextFunction): void {
+  if (req.body && Array.isArray(req.body.products)) {
+    const total = req.body.products.reduce((sum: number, p: any) => {
+      const price = Number(p.price) || 0;
+      const qty = Number(p.quantity) || 0;
+      return sum + (price * qty);
+    }, 0);
+    req.body.amount = total;
+  }
+  next();
+}
+
 const paymentRequestSchema = z.object({
   recipient_phone: z.string().trim().min(1),
   amount: z.coerce.number().positive(),
   location_id: z.string().uuid(),
-  product: z.object({
-    name: z.string().trim().min(1),
-    description: z.string().trim().nullable().optional(),
-    quantity: z.coerce.number().int().positive(),
-    price: z.coerce.number().nonnegative()
-  }),
+  products: z.array(
+    z.object({
+      name: z.string().trim().min(1),
+      description: z.string().trim().nullable().optional(),
+      quantity: z.coerce.number().int().positive(),
+      price: z.coerce.number().nonnegative(),
+      image_base64: z.string().trim().nullable().optional()
+    })
+  ).nonempty(),
   receipt_base64: z.string().trim().nullable().optional()
 })
 
-paymentsRouter.post("/request", verifyLimits, asyncHandler(async (req, res) => {
+paymentsRouter.post("/request", calculateTotalAmount, verifyLimits, asyncHandler(async (req, res) => {
   const body = paymentRequestSchema.parse(req.body)
 
-  const { data: tx, error: txErr } = await req.supabase.from("corporate_transactions").insert({
-    user_id: req.user.id,
-    recipient_phone: body.recipient_phone,
-    amount: body.amount,
-    status: "pending",
-    receipt_base64: body.receipt_base64 || null,
-    location_id: body.location_id,
-  }).select("id").single()
-
-  if (txErr || !tx) throw txErr || new Error("Failed to record transaction")
-
-  const { error: prodErr } = await req.supabase.from("transaction_products").insert({
-    transaction_id: tx.id,
-    name: body.product.name,
-    description: body.product.description || null,
-    quantity: body.product.quantity,
-    price: body.product.price,
+  // Call the atomic transaction RPC function
+  const { data: txId, error: txErr } = await req.supabase.rpc("create_corporate_transaction", {
+    p_user_id: req.user.id,
+    p_recipient_phone: body.recipient_phone,
+    p_amount: body.amount,
+    p_location_id: body.location_id,
+    p_receipt_base64: body.receipt_base64 || null,
+    p_products: body.products,
   })
 
-  if (prodErr) throw prodErr
+  if (txErr || !txId) throw txErr || new Error("Failed to record transaction")
 
-  return res.json({ transactionId: tx.id, status: "pending" })
+  return res.json({ transactionId: txId, status: "pending" })
 }))
 
 const resolvePaymentSchema = z.object({
@@ -133,7 +139,7 @@ paymentsRouter.post("/resolve", requireAdminOrCashier, asyncHandler(async (req, 
 
   if (status === "rejected") {
     // Update status to failed
-    await req.supabase.from("corporate_transactions").update({ status: "failed" }).eq("id", id)
+    await req.supabase.from("corporate_transactions").update({ status: "failed", failure_reason: "Rejected by Administrator" }).eq("id", id)
     return res.json({ transactionId: id, status: "rejected" })
   }
 
@@ -150,9 +156,9 @@ paymentsRouter.post("/resolve", requireAdminOrCashier, asyncHandler(async (req, 
     if (statusRef.status === "SUCCESSFUL") {
       await req.supabase.from("corporate_transactions").update({ status: "completed" }).eq("id", tx.id)
 
-      // 3. Update stock levels
-      const product = tx.transaction_products?.[0]
-      if (product) {
+      // 3. Update stock levels for all products in the cart
+      const products = tx.transaction_products || []
+      for (const product of products) {
         let itemId: string
         const { data: existingItem } = await req.supabase.from("items").select("id").eq("name", product.name).maybeSingle()
         if (existingItem) {
@@ -179,13 +185,40 @@ paymentsRouter.post("/resolve", requireAdminOrCashier, asyncHandler(async (req, 
 
       return res.json({ transactionId: tx.id, status: "completed" })
     } else {
-      await req.supabase.from("corporate_transactions").update({ status: "failed" }).eq("id", tx.id)
-      return res.status(422).json({ transactionId: tx.id, status: "failed", error: statusRef.reason?.message || "Transfer failed" })
+      const reason = statusRef.reason?.message || "Transfer failed";
+      await req.supabase.from("corporate_transactions").update({ status: "failed", failure_reason: reason }).eq("id", tx.id)
+      return res.status(422).json({ transactionId: tx.id, status: "failed", error: reason })
     }
-  } catch (err) {
-    await req.supabase.from("corporate_transactions").update({ status: "failed" }).eq("id", tx.id)
+  } catch (err: any) {
+    const reason = err.message || "API connection down";
+    await req.supabase.from("corporate_transactions").update({ status: "failed", failure_reason: reason }).eq("id", tx.id)
     throw err
   }
+}))
+
+// 4. GET /balance endpoint (admin only)
+paymentsRouter.get("/balance", requireAdmin, asyncHandler(async (_req, res) => {
+  const balance = await momo.getAccountBalance()
+  res.json(balance)
+}))
+
+// 5. PATCH /transactions/:id/receipt endpoint (upload receipt post-approval)
+const receiptBodySchema = z.object({
+  receipt_base64: z.string().trim().min(1),
+})
+
+paymentsRouter.patch("/transactions/:id/receipt", asyncHandler(async (req, res) => {
+  const { receipt_base64 } = receiptBodySchema.parse(req.body)
+
+  const { data, error } = await req.supabase
+    .from("corporate_transactions")
+    .update({ receipt_base64 })
+    .eq("id", req.params.id)
+    .select()
+    .single()
+
+  if (error) throw error
+  res.json(data)
 }))
 
 const listQuerySchema = z.object({ limit: z.coerce.number().int().positive().max(200).default(50), offset: z.coerce.number().int().nonnegative().default(0), })
@@ -238,11 +271,16 @@ paymentsRouter.get("/reports/export", requireAdminOrCashier, asyncHandler(async 
 
   for (const tx of data || []) {
     const employee = (tx.profiles as any)?.full_name || "Unknown"
-    const product = tx.transaction_products?.[0]?.name || "N/A"
-    const qty = tx.transaction_products?.[0]?.quantity || 0
-    const price = tx.transaction_products?.[0]?.price || 0
     const date = new Date(tx.created_at).toISOString()
-    csv += `"${tx.id}","${employee.replace(/"/g, '""')}","${tx.recipient_phone}","${product.replace(/"/g, '""')}",${qty},${price},${tx.amount},"${tx.status}","${date}"\n`
+    const products = tx.transaction_products || []
+    
+    if (products.length === 0) {
+      csv += `"${tx.id}","${employee.replace(/"/g, '""')}","${tx.recipient_phone}","N/A",0,0,${tx.amount},"${tx.status}","${date}"\n`
+    } else {
+      for (const product of products) {
+        csv += `"${tx.id}","${employee.replace(/"/g, '""')}","${tx.recipient_phone}","${product.name.replace(/"/g, '""')}",${product.quantity},${product.price},${product.price * product.quantity},"${tx.status}","${date}"\n`
+      }
+    }
   }
 
   res.setHeader("Content-Type", "text/csv")
@@ -256,7 +294,7 @@ paymentsRouter.get("/notifications", asyncHandler(async (req, res) => {
 
   const isAdminOrCashier = me?.role === "admin" || me?.fallback_role === "cashier"
 
-  let query = req.supabase.from("corporate_transactions").select(`id,status,amount,recipient_phone, created_at, profiles:user_id(full_name), transaction_products(name)`).order("created_at", { ascending: false }).limit(20)
+  let query = req.supabase.from("corporate_transactions").select(`id,status,amount,recipient_phone, failure_reason, created_at, item_photo_base64, receipt_base64, profiles:user_id(full_name), transaction_products(name)`).order("created_at", { ascending: false }).limit(20)
 
   if (!isAdminOrCashier) {
     query = query.eq("user_id", req.user.id)
@@ -268,11 +306,12 @@ paymentsRouter.get("/notifications", asyncHandler(async (req, res) => {
     const productName = tx.transaction_products?.[0]?.name || "Product"
     const employeeName = (tx.profiles as any)?.full_name || "An employee"
     let message = ""
+    const reasonSuffix = tx.failure_reason ? ` (Reason: ${tx.failure_reason})` : ""
 
     if (tx.status === "completed") {
       message = isAdminOrCashier ? `${employeeName} paid RWF ${tx.amount} to ${tx.recipient_phone} for ${productName}.` : `Your payment of RWF ${tx.amount} for ${productName} succeeded.`
     } else if (tx.status === "failed") {
-      message = isAdminOrCashier ? `Payment request by ${employeeName} for ${tx.amount} failed.` : `Your payment of RWF ${tx.amount} for ${productName} failed`
+      message = isAdminOrCashier ? `Payment request by ${employeeName} for RWF ${tx.amount} failed${reasonSuffix}.` : `Your payment of RWF ${tx.amount} for ${productName} failed${reasonSuffix}.`
     } else {
       message = isAdminOrCashier ? `New pending payment request from ${employeeName} for RWF ${tx.amount}.` : `Your payment of RWF ${tx.amount} for ${productName} is processing.`
     }

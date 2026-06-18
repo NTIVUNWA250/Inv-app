@@ -8,12 +8,14 @@ export async function verifyLimits(req: Request, _res: Response, next: NextFunct
       throw new HttpError(400, "Invalid transaction amount.", "invalid_amount")
     }
 
-    const { data: profile, error } = await req.supabase.from("profiles").select("has_payment_permission, daily_limit, monthly_limit, per_transaction_limit").eq("id", req.user.id).single();
+    const { data: profile, error } = await req.supabase.from("profiles").select("role, fallback_role, has_payment_permission, daily_limit, monthly_limit, per_transaction_limit").eq("id", req.user.id).single();
     if (error || !profile) {
       throw new HttpError(403, "Could not load user profile limits", "profile_load_failed");
     }
 
-    if (!profile.has_payment_permission) {
+    const isAdminOrCashier = profile.role === "admin" || profile.fallback_role === "cashier";
+
+    if (!isAdminOrCashier && !profile.has_payment_permission) {
       throw new HttpError(403, "You do not have corporate payment permissions", "no_payment_permission");
     }
 
