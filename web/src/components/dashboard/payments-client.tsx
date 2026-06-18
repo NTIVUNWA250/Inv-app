@@ -50,6 +50,8 @@ interface PaymentsClientProps {
   stock: StockLevel[];
 }
 
+
+
 export function PaymentsClient({
   currentUserName,
   role,
@@ -59,6 +61,57 @@ export function PaymentsClient({
 }: PaymentsClientProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [activeTab, setActiveTab] = useState<"request" | "audit">("request");
+
+  // Budget management states
+  const [budget, setBudget] = useState<{
+    allocated_amount: number;
+    remaining_amount: number;
+    month: number;
+    year: number;
+  } | null>(null);
+  const [isEditingBudget, setIsEditingBudget] = useState(false);
+  const [isSavingBudget, setIsSavingBudget] = useState(false);
+  const [newAllocation, setNewAllocation] = useState("0");
+
+  const fetchBudget = async () => {
+    try {
+      const res = await fetch("/api/payments/budget");
+      if (res.ok) {
+        const data = await res.json();
+        setBudget(data);
+        setNewAllocation(String(data.allocated_amount));
+      }
+    } catch (error) {
+      console.log("Failed to load monthly budget info", error);
+    }
+  };
+
+  const handleSaveBudget = async () => {
+    setIsSavingBudget(true);
+    try {
+      const res = await fetch("/api/payments/budget", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          allocated_amount: parseFloat(newAllocation) || 0
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBudget(data);
+        setIsEditingBudget(false);
+      } else {
+        alert("Failed to update allocated budget");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Error saving budget");
+    } finally {
+      setIsSavingBudget(false);
+    }
+  };
+
+  const percentUsed = budget && budget.allocated_amount > 0 ? ((budget.allocated_amount - budget.remaining_amount) / budget.allocated_amount) * 100 : 0;
   const [form, setForm] = useState({
     recipient: "",
     productName: "",
@@ -158,15 +211,20 @@ export function PaymentsClient({
         console.error("Failed to load transactions", e);
       }
     };
-
     fetchTransactions();
-
-    const interval = setInterval(fetchTransactions, 3000);
-
+    if (role === "admin") {
+      fetchBudget();
+    }
+    const interval = setInterval(() => {
+      fetchTransactions();
+      if (role === "admin") {
+        fetchBudget();
+      }
+    }, 3000);
     return () => {
       clearInterval(interval);
     };
-  }, []);
+  }, [role]);
 
   // Render a beautifully styled status badge
   const renderStatusBadge = (status: Transaction["status"]) => {
@@ -365,21 +423,19 @@ export function PaymentsClient({
         <div className="flex border-b border-border space-x-6 mb-2">
           <button
             onClick={() => setActiveTab("request")}
-            className={`pb-3 text-sm font-medium border-b-2 transition-all duration-200 outline-none ${
-              activeTab === "request"
-                ? "border-highlight text-foreground font-semibold"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
+            className={`pb-3 text-sm font-medium border-b-2 transition-all duration-200 outline-none ${activeTab === "request"
+              ? "border-highlight text-foreground font-semibold"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
           >
             Request Expense
           </button>
           <button
             onClick={() => setActiveTab("audit")}
-            className={`pb-3 text-sm font-medium border-b-2 transition-all duration-200 outline-none ${
-              activeTab === "audit"
-                ? "border-highlight text-foreground font-semibold"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
+            className={`pb-3 text-sm font-medium border-b-2 transition-all duration-200 outline-none ${activeTab === "audit"
+              ? "border-highlight text-foreground font-semibold"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
           >
             Auditing & Reports
           </button>
@@ -633,6 +689,97 @@ export function PaymentsClient({
         </div>
       ) : (
         <div className="space-y-6">
+          {role === "admin" && (
+            <Panel title="Monthly Budget Allocation">
+              <div className="p-5 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <h3 className="font-serif text-base text-foreground font-medium">
+                      Active Budget ({budget ? `${budget.month}/${budget.year}` : "Current Month"})
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Track and limit total corporate spending disbursements for this month.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isEditingBudget ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          value={newAllocation}
+                          onChange={(e) => setNewAllocation(e.target.value)}
+                          className="w-36 rounded-md border border-border bg-card px-3 py-1 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          placeholder="Allocation (RWF)"
+                        />
+                        <button
+                          onClick={handleSaveBudget}
+                          disabled={isSavingBudget}
+                          className="inline-flex h-8 items-center justify-center rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                        >
+                          {isSavingBudget ? "Saving..." : "Save"}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsEditingBudget(false);
+                            setNewAllocation(budget ? String(budget.allocated_amount) : "0");
+                          }}
+                          className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-card px-3 text-xs font-semibold text-foreground hover:bg-hover transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setIsEditingBudget(true)}
+                        className="inline-flex h-8 items-center justify-center rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                      >
+                        Set Allocation
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {budget && budget.allocated_amount > 0 && (
+                  <div className="space-y-3 pt-2">
+                    <div className="grid grid-cols-2 text-xs">
+                      <div>
+                        <span className="text-muted-foreground block font-medium">Allocated Limit</span>
+                        <span className="font-mono text-base font-semibold text-foreground">
+                          {formatRWF(budget.allocated_amount)}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-muted-foreground block font-medium">Remaining Balance</span>
+                        <span className="font-mono text-base font-semibold text-highlight">
+                          {formatRWF(budget.remaining_amount)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar Gauge */}
+                    <div className="relative h-2 w-full overflow-hidden rounded-full bg-surface-2 border border-border">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          percentUsed > 85
+                            ? "bg-destructive"
+                            : percentUsed > 60
+                            ? "bg-warning"
+                            : "bg-success"
+                        }`}
+                        style={{ width: `${Math.min(100, percentUsed)}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-muted-foreground font-medium">
+                      <span>{percentUsed.toFixed(0)}% utilized</span>
+                      <span>{formatRWF(budget.allocated_amount - budget.remaining_amount)} spent</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Panel>
+          )}
+
           <Panel title="Export Expense Reports">
             <div className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="space-y-1">

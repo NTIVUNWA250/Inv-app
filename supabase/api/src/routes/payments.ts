@@ -123,6 +123,32 @@ paymentsRouter.post("/resolve", requireAdminOrCashier, asyncHandler(async (req, 
     .eq("id", id)
     .single()
 
+  const txDate = new Date(tx.created_at)
+  const year = txDate.getFullYear()
+  const month = txDate.getMonth() + 1
+
+  const { data: budget, error: budgetErr } = await req.supabase.from("monthly_budgets").select("*").eq("year", year).eq("month", month).maybeSingle()
+
+  if (budgetErr) throw budgetErr
+  if (!budget || Number(budget.remaining_amount) < Number(tx.amount)) {
+    const reason = !budget ? "NO_BUDGET_ALLOCATED" : "INSUFFICIENT_MONTHLY_BUDGET"
+
+    await req.supabase.from("corporate_transactions").update({
+      status: "failed",
+      failure_reason: reason
+    }).eq("id", id)
+
+    throw new HttpError(400, !budget ? "No budget allocated for this month." : "Insufficient monthl budget balance", "insufficient_budget")
+  }
+
+  // Deduction of funds immediately (Hold / Reserve state)
+
+  const reservedRemaining = Number(budget.remaining_amount) - Number(tx.amount)
+  await req.supabase.from("monthly_budgets").update({ remaining_amount: reservedRemaining }).eq("id", budget.id)
+
+  // Linkin the budget reference to this transaction record
+  await req.supabase.from("corporate_transactions").update({ budget_id: budget.id }).eq("id", tx.id)
+
   if (txErr || !tx) {
     throw new HttpError(404, "Transaction not found", "not_found")
   }
@@ -179,12 +205,33 @@ paymentsRouter.post("/resolve", requireAdminOrCashier, asyncHandler(async (req, 
 
       return res.json({ transactionId: tx.id, status: "completed" })
     } else {
-      await req.supabase.from("corporate_transactions").update({ status: "failed" }).eq("id", tx.id)
-      return res.status(422).json({ transactionId: tx.id, status: "failed", error: statusRef.reason?.message || "Transfer failed" })
+      const { data: currentBudget } = await req.supabase.from("monthly_budgets").select("remaining_amount").eq("id", budget.id).single()
+      const refundedRemaining = Number(currentBudget?.remaining_amount || 0) + Number(tx.amount)
+      await req.supabase.from("monthly_budgets").update({
+        remaining_amount: refundedRemaining
+      }).eq("id", budget.id)
+
+      await req.supabase.from("corporate_transactions").update({
+        status: "failed",
+        failure_reason: "MOMO_PAYMENT_FAILED"
+      }).eq("id", tx.id)
+
+      return res.status(400).json({ error: "MoMo Checkout payment was unsuccessful", code: "momo_payment_failed" })
     }
-  } catch (err) {
-    await req.supabase.from("corporate_transactions").update({ status: "failed" }).eq("id", tx.id)
-    throw err
+  } catch (momoErr) {
+    console.error("[Payments] Resolution failed:", momoErr)
+
+    const { data: currentBudget } = await req.supabase.from("monthly_budgets").select("remaining_amount").eq("id", budget.id).single()
+    const refundedRemaining = Number(currentBudget?.remaining_amount || 0) + Number(tx.amount)
+
+    await req.supabase.from("monthly_budgets").update({ remaining_amount: refundedRemaining }).eq("id", budget.id)
+
+    await req.supabase.from("corporate_transactions").update({
+      status: "failed",
+      failure_reason: "GATEWAY_DISPATCH_ERROR"
+    }).eq("id", tx.id)
+
+    throw momoErr
   }
 }))
 
@@ -250,6 +297,64 @@ paymentsRouter.get("/reports/export", requireAdminOrCashier, asyncHandler(async 
   res.send(csv)
 })
 )
+
+const budgetSchema = z.object({
+  allocated_amount: z.number().nonnegative()
+})
+
+paymentsRouter.get("/budgets", requireAdminOrCashier, asyncHandler(async (req, res) => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth() + 1
+
+  const { data: budget, error } = await req.supabase.from("monthly_budgets").select("*").eq("year", year).eq("month", month).maybeSingle()
+
+  if (error) throw error
+
+  res.json(budget || { allocated_amount: 0, remaining_amount: 0, year, month })
+}))
+
+paymentsRouter.post("/budgets", requireAdminOrCashier, asyncHandler(async (req, res) => {
+  const { allocated_amount } = budgetSchema.parse(req.body)
+
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth() + 1
+
+  const { data: existing, error: getErr } = await req.supabase.from("monthly_budgets").select("*").eq("year", year).eq("month", month).maybeSingle()
+
+  if (getErr) throw getErr
+
+  let result
+
+  if (existing) {
+    const difference = allocated_amount - Number(existing.allocated_amount)
+    const newRemaining = Number(existing.remaining_amount) + difference
+
+    const { data, error } = await req.supabase.from("monthly_budgets").update({
+      allocated_amount: Number(allocated_amount),
+      remaining_amount: Math.max(0, newRemaining),
+      updated_at: new Date().toISOString()
+    }).eq("id", existing.id).select("*").single()
+
+    if (error) throw error
+
+    result = data
+  } else {
+    const { data, error } = await req.supabase.from("monthly_budgets").insert({
+      year,
+      month,
+      allocated_amount,
+      remaining_amount: allocated_amount
+    }).select().single()
+
+    if (error) throw error
+
+    result = data
+  }
+
+  res.json(result)
+}))
 
 paymentsRouter.get("/notifications", asyncHandler(async (req, res) => {
   const { data: me } = await req.supabase.from("profiles").select("role, fallback_role").eq("id", req.user.id).single()

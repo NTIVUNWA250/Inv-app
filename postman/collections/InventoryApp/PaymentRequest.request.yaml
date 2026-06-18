@@ -1,0 +1,33 @@
+$kind: http-request
+url: http://localhost:4000/payments/request
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: "{\r
+
+    \    \"recipient_phone\": \"250780000000\",\r
+
+    \    \"amount\": 500,\r
+
+    \    \"location_id\": \"dd5fa958-a400-4cd7-adc7-c32b6b9f7b67\",\r
+
+    \    \"product\": {\r
+
+    \        \"name\": \"Test Item X\",\r
+
+    \        \"description\": \"Purchased for Lab A\",\r
+
+    \        \"quantity\": 10,\r
+
+    \        \"price\": 50\r
+
+    \    }\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{supabase_service_role_api_key_0rgq}}"
+order: 6000

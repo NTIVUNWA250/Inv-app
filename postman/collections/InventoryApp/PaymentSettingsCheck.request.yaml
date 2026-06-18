@@ -1,0 +1,23 @@
+$kind: http-request
+url: http://localhost:4000/payments/profiles/d93e3d19-6a8a-4171-8abc-20b1a01991b0/payment-settings
+method: PATCH
+body:
+  type: json
+  content: "{    \r
+
+    \    \"has_payment_permission\":true,\r
+
+    \    \"fallback_role\": \"cashier\",\r
+
+    \    \"daily_limit\": 75000,\r
+
+    \    \"monthly_limit\": 1500000,\r
+
+    \    \"per_transaction_limit\": 20000\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{supabase_service_role_api_key_04pc}}"
+order: 4000

@@ -1,0 +1,5 @@
+workspace:
+  id: 837d603a-61b0-4b31-8940-ae9a8c1902ad
+cloudResources:
+  collections:
+    ../postman/collections/InventoryApp: 52202303-1a8ed686-1e41-4f65-865f-24558c7672f8

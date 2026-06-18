@@ -1,0 +1,13 @@
+$kind: collection
+name: InventoryApp
+variables:
+  - key: supabase_service_role_api_key_195n
+    secret: true
+  - key: supabase_service_role_api_key_178r
+    secret: true
+  - key: supabase_service_role_api_key_0rgq
+    secret: true
+  - key: supabase_service_role_api_key_105a
+    secret: true
+  - key: supabase_service_role_api_key_04pc
+    secret: true

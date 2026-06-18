@@ -1,0 +1,11 @@
+$kind: http-request
+url: http://localhost:4000/locations
+method: GET
+body:
+  type: json
+  content: ""
+auth:
+  type: bearer
+  credentials:
+    token: "{{supabase_service_role_api_key_105a}}"
+order: 5000
