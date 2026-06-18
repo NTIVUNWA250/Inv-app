@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
 import { serverApi, ApiError } from "@/lib/api/server";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId");
+    
     const api = serverApi();
-    const backendTxs = await api.get<any[]>("/payments/transactions?limit=100");
+    const url = userId 
+      ? `/payments/transactions?limit=100&userId=${userId}` 
+      : "/payments/transactions?limit=100";
+      
+    const backendTxs = await api.get<any[]>(url);
 
     const mappedTxs = backendTxs.map((tx) => {
       const product = tx.transaction_products?.[0] || {};
@@ -17,7 +24,9 @@ export async function GET() {
         quantity: product.quantity || 0,
         price: product.price || 0,
         status: tx.status,
-        imageName: tx.receipt_base64 || undefined,
+        imageName: tx.product_image_base64 || undefined,
+        receiptImage: tx.receipt_base64 || undefined,
+        isStocked: tx.is_stocked || false,
         createdBy: tx.profiles?.full_name || "Unknown",
         createdAt: tx.created_at,
         locationId: tx.location_id,
@@ -79,7 +88,7 @@ export async function POST(request: Request) {
         quantity: qtyNum,
         price: priceNum
       },
-      receipt_base64: body.imageName || null
+      product_image_base64: body.imageName || null
     });
 
     const mappedTx = {

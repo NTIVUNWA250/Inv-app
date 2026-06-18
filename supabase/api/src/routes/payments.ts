@@ -78,7 +78,7 @@ const paymentRequestSchema = z.object({
     quantity: z.coerce.number().int().positive(),
     price: z.coerce.number().nonnegative()
   }),
-  receipt_base64: z.string().trim().nullable().optional()
+  product_image_base64: z.string().trim().nullable().optional()
 })
 
 paymentsRouter.post("/request", verifyLimits, asyncHandler(async (req, res) => {
@@ -89,7 +89,7 @@ paymentsRouter.post("/request", verifyLimits, asyncHandler(async (req, res) => {
     recipient_phone: body.recipient_phone,
     amount: body.amount,
     status: "pending",
-    receipt_base64: body.receipt_base64 || null,
+    product_image_base64: body.product_image_base64 || null,
     location_id: body.location_id,
   }).select("id").single()
 
@@ -250,23 +250,57 @@ paymentsRouter.post("/resolve", requireAdminOrCashier, asyncHandler(async (req, 
 }))
 
 
-const listQuerySchema = z.object({ limit: z.coerce.number().int().positive().max(200).default(50), offset: z.coerce.number().int().nonnegative().default(0), })
+const listQuerySchema = z.object({
+  limit: z.coerce.number().int().positive().max(200).default(50),
+  offset: z.coerce.number().int().nonnegative().default(0),
+  userId: z.string().uuid().optional(),
+})
 
 paymentsRouter.get("/transactions", asyncHandler(async (req, res) => {
-  const { limit, offset } = listQuerySchema.parse(req.query)
+  const { limit, offset, userId } = listQuerySchema.parse(req.query)
   const { data: me } = await req.supabase.from("profiles").select("role, fallback_role").eq("id", req.user.id).single()
 
   const isAdminOrCashier = me?.role === "admin" || me?.fallback_role === "cashier"
+
+  if (!isAdminOrCashier && userId && userId !== req.user.id) {
+    throw new HttpError(403, "You do not have permission to view another user's transactions.", "forbidden")
+  }
 
   let query = req.supabase.from("corporate_transactions").select(`*, profiles:user_id(full_name, role, fallback_role), transaction_products(*), locations:location_id(name)`).order("created_at", { ascending: false }).range(offset, offset + limit - 1)
 
   if (!isAdminOrCashier) {
     query = query.eq("user_id", req.user.id)
+  } else if (userId) {
+    query = query.eq("user_id", userId)
   }
 
   const { data, error } = await query
   if (error) throw error
-  res.json(data)
+
+  // Query stock movements to see which transactions have been stocked
+  const { data: movements, error: moveErr } = await req.supabase
+    .from("stock_movements")
+    .select("note")
+    .like("note", "Auto-purchased via corporate transaction %")
+
+  if (moveErr) throw moveErr
+
+  const stockedTxIds = new Set<string>()
+  if (movements) {
+    movements.forEach((m) => {
+      const match = m.note?.match(/Auto-purchased via corporate transaction ([a-f0-9-]{36})/)
+      if (match && match[1]) {
+        stockedTxIds.add(match[1])
+      }
+    })
+  }
+
+  const mapped = (data || []).map((tx) => ({
+    ...tx,
+    is_stocked: stockedTxIds.has(tx.id)
+  }))
+
+  res.json(mapped)
 }))
 
 paymentsRouter.get("/reports/export", requireAdminOrCashier, asyncHandler(async (req, res) => {

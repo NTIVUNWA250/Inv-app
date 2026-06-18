@@ -1,12 +1,13 @@
 "use client";
 
-import { useTransition } from "react";
-import { CreditCard } from "lucide-react";
+import { useTransition, useState } from "react";
+import { CreditCard, BarChart3 } from "lucide-react";
 import { RoleSelect } from "@/components/dashboard/role-select";
 import { DeleteUserButton } from "@/components/dashboard/delete-user-button";
 import { BlockUserButton } from "@/components/dashboard/block-user-button";
 import { EditUserButton } from "@/components/dashboard/edit-user-button";
 import { Badge } from "@/components/ui/badge";
+import { UserReportDialog } from "@/components/dashboard/user-report-dialog";
 import {
   Table,
   TableBody,
@@ -28,6 +29,7 @@ export function UsersTableClient({
   currentUserId,
 }: UsersTableClientProps) {
   const [pending, startTransition] = useTransition();
+  const [reportProfile, setReportProfile] = useState<Profile | null>(null);
 
   const togglePermission = (userId: string, name: string, isCurrentlyAllowed: boolean) => {
     const target = name || "this user";
@@ -47,7 +49,8 @@ export function UsersTableClient({
   };
 
   return (
-    <Table>
+    <>
+      <Table>
       <TableHeader>
         <TableRow>
           <TableHead className="px-5">Name</TableHead>
@@ -118,6 +121,15 @@ export function UsersTableClient({
                   <span className="text-xs text-muted-foreground">—</span>
                 ) : (
                   <div className="flex justify-end gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setReportProfile(p)}
+                      title="View spending report"
+                      aria-label={`View spending report for ${p.full_name || "this user"}`}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-hover hover:text-highlight disabled:opacity-50"
+                    >
+                      <BarChart3 className="h-4 w-4" />
+                    </button>
                     <EditUserButton profile={p} />
                     <BlockUserButton
                       id={p.id}
@@ -133,5 +145,14 @@ export function UsersTableClient({
         })}
       </TableBody>
     </Table>
+
+      {reportProfile && (
+        <UserReportDialog
+          isOpen={!!reportProfile}
+          onClose={() => setReportProfile(null)}
+          profile={reportProfile!}
+        />
+      )}
+    </>
   );
 }

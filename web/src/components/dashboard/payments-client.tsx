@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Wallet, Camera, CheckCircle2, Trash2, Download } from "lucide-react";
+import { Wallet, Camera, CheckCircle2, Trash2, Download, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +34,7 @@ interface Transaction {
   locationId?: string;
   locationName?: string;
   failureReason?: string | null;
+  isStocked?: boolean;
 }
 
 
@@ -674,6 +675,7 @@ export function PaymentsClient({
                     <TableHead className="px-5 text-right">Quantity</TableHead>
                     <TableHead className="px-5 text-right">Price</TableHead>
                     <TableHead className="px-5 text-right">Receipt</TableHead>
+                    <TableHead className="px-5 text-right">Stock</TableHead>
                     <TableHead className="px-5 text-right">Status</TableHead>
                     <TableHead className="px-5 text-right">Date</TableHead>
                   </TableRow>
@@ -714,6 +716,23 @@ export function PaymentsClient({
                             >
                               Upload Receipt
                             </button>
+                          )
+                        ) : (
+                          <span className="text-xs text-muted-foreground font-medium">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="px-5 text-right">
+                        {tx.status === "completed" ? (
+                          tx.isStocked ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-success-soft text-emerald-700 dark:text-success border border-success/20 px-2 py-0.5 text-[10px] font-semibold">
+                              <CheckCircle2 className="h-3 w-3" />
+                              Checked into Stock
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-warning-soft text-amber-700 dark:text-warning border border-warning/20 px-2 py-0.5 text-[10px] font-semibold animate-pulse">
+                              <AlertCircle className="h-3 w-3" />
+                              Pending Check-in
+                            </span>
                           )
                         ) : (
                           <span className="text-xs text-muted-foreground font-medium">—</span>
