@@ -1,23 +1,69 @@
 import { NextResponse } from "next/server";
 import { serverApi, ApiError } from "@/lib/api/server";
 
+interface BackendProduct {
+  name: string;
+  description?: string | null;
+  quantity: number;
+  price: number;
+  item_photo_base64?: string | null;
+}
+
+interface BackendTransaction {
+  id: string;
+  user_id: string;
+  recipient_phone: string;
+  amount: number;
+  status: string;
+  momo_ref?: string | null;
+  item_photo_base64?: string | null;
+  receipt_base64?: string | null;
+  location_id: string;
+  created_at: string;
+  profiles?: {
+    full_name?: string | null;
+  } | null;
+  locations?: {
+    name?: string | null;
+  } | null;
+  transaction_products?: BackendProduct[] | null;
+}
+
+interface RequestBody {
+  recipient?: string;
+  locationId?: string;
+  locationName?: string;
+  createdBy?: string;
+  imageName?: string | null;
+  products?: (BackendProduct & { image?: string | null })[];
+}
+
 export async function GET() {
   try {
     const api = serverApi();
-    const backendTxs = await api.get<any[]>("/payments/transactions?limit=100");
+    const backendTxs = await api.get<BackendTransaction[]>("/payments/transactions?limit=100");
 
     const mappedTxs = backendTxs.map((tx) => {
-      const product = tx.transaction_products?.[0] || {};
+      const products = (tx.transaction_products || []).map((p) => ({
+        name: p.name,
+        description: p.description || "",
+        quantity: p.quantity,
+        price: p.price,
+        image: p.item_photo_base64 || undefined
+      }));
 
       return {
         id: tx.id,
         recipient: tx.recipient_phone,
-        productName: product.name || "N/A",
-        description: product.description || "",
-        quantity: product.quantity || 0,
-        price: product.price || 0,
+        products: products,
+        productName: products.map((p) => p.name).join(", ") || "N/A",
+        description: products[0]?.description || "",
+        quantity: products.reduce((sum, p) => sum + (p.quantity || 0), 0),
+        price: tx.amount, // Total amount is directly stored in the transaction
         status: tx.status,
-        imageName: tx.receipt_base64 || undefined,
+        imageName: tx.item_photo_base64 || undefined,
+        itemPhoto: tx.item_photo_base64 || undefined,
+        receiptPhoto: tx.receipt_base64 || undefined,
         createdBy: tx.profiles?.full_name || "Unknown",
         createdAt: tx.created_at,
         locationId: tx.location_id,
@@ -36,57 +82,50 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const body = (await request.json()) as RequestBody;
 
     if (
       !body.recipient ||
-      !body.productName ||
-      !body.price ||
+      !body.locationId ||
       !body.createdBy ||
-      !body.locationId
+      !Array.isArray(body.products) ||
+      body.products.length === 0
     ) {
       return NextResponse.json(
         {
           error:
-            "Recipient, product name, price, and location are required.",
+            "Recipient, storage location, createdBy, and a non-empty products list are required.",
         },
-        { status: 400 }
-      );
-    }
-
-    const priceNum = parseFloat(body.price);
-    const qtyNum = parseInt(body.quantity) || 1;
-    const amount = priceNum * qtyNum;
-
-    if (isNaN(priceNum) || priceNum <= 0) {
-      return NextResponse.json(
-        { error: "Price must be a valid positive number." },
         { status: 400 }
       );
     }
 
     const api = serverApi();
 
-    const backendRes = await api.post<any>("/payments/request", {
+    const backendRes = await api.post<{ transactionId: string; status: string }>("/payments/request", {
       recipient_phone: String(body.recipient).trim(),
-      amount,
       location_id: String(body.locationId).trim(),
-      product: {
-        name: String(body.productName).trim(),
-        description: String(body.description || "").trim(),
-        quantity: qtyNum,
-        price: priceNum
-      },
+      products: body.products.map((p) => ({
+        name: String(p.name).trim(),
+        description: p.description ? String(p.description).trim() : null,
+        quantity: parseInt(String(p.quantity)) || 1,
+        price: parseFloat(String(p.price)) || 0,
+        image_base64: p.image || null
+      })),
       receipt_base64: body.imageName || null
     });
+
+    const totalQty = body.products.reduce((sum, p) => sum + (parseInt(String(p.quantity)) || 1), 0);
+    const totalAmount = body.products.reduce((sum, p) => sum + ((parseFloat(String(p.price)) || 0) * (parseInt(String(p.quantity)) || 1)), 0);
 
     const mappedTx = {
       id: backendRes.transactionId,
       recipient: String(body.recipient).trim(),
-      productName: String(body.productName).trim(),
-      description: String(body.description || "").trim(),
-      quantity: qtyNum,
-      price: priceNum,
+      products: body.products,
+      productName: body.products.map((p) => p.name).join(", "),
+      description: body.products[0]?.description || "",
+      quantity: totalQty,
+      price: totalAmount,
       status: backendRes.status,
       createdBy: String(body.createdBy).trim(),
       createdAt: new Date().toISOString(),
@@ -102,4 +141,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: msg }, { status });
   }
 }
-
