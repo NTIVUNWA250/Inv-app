@@ -29,6 +29,7 @@ interface Transaction {
     price: number;
     status: "pending" | "processing" | "completed" | "failed";
     imageName?: string;
+    receiptImage?: string;
     createdBy: string;
     createdAt: string;
     locationId?: string;
@@ -396,11 +397,11 @@ export function Notifications({ role, name }: NotificationsProps) {
                                 selectedTx.imageName.startsWith("https://")
                             ) ? (
                                 <div className="border-t border-border/40 pt-3 space-y-2">
-                                    <span className="text-muted-foreground font-medium text-[12px]">Receipt Attachment:</span>
+                                    <span className="text-muted-foreground font-medium text-[12px]">Product Image:</span>
                                     <div className="relative overflow-hidden rounded-lg border border-border bg-muted/10 max-h-[240px] flex items-center justify-center p-1.5">
                                         <img
                                             src={selectedTx.imageName}
-                                            alt="Receipt Attachment"
+                                            alt="Product Image"
                                             className="max-h-[228px] w-full object-contain rounded-md transition-transform hover:scale-[1.02] duration-200"
                                         />
                                     </div>
@@ -415,10 +416,10 @@ export function Notifications({ role, name }: NotificationsProps) {
                                 </div>
                             ) : (
                                 <div className="border-t border-border/40 pt-3 space-y-2">
-                                    <span className="text-muted-foreground font-medium text-[12px]">Receipt Attachment:</span>
+                                    <span className="text-muted-foreground font-medium text-[12px]">Product Image:</span>
                                     <div className="flex items-center gap-2 rounded-lg border border-dashed border-border p-3 text-center text-muted-foreground bg-muted/5 justify-center">
                                         <FileText className="h-4 w-4 text-muted-foreground/30 shrink-0" />
-                                        <span className="text-xs">No receipt image attached</span>
+                                        <span className="text-xs">No product image attached</span>
                                     </div>
                                 </div>
                             )}

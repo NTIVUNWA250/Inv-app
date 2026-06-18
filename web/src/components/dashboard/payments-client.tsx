@@ -29,6 +29,7 @@ interface Transaction {
   price: number;
   status: "pending" | "processing" | "completed" | "failed";
   imageName?: string;
+  receiptImage?: string;
   createdBy: string;
   createdAt: string;
   locationId?: string;
@@ -83,7 +84,7 @@ export function PaymentsClient({
 
   const handleUploadSuccess = (txId: string, receiptBase64: string) => {
     setTransactions((prev) =>
-      prev.map((tx) => (tx.id === txId ? { ...tx, imageName: receiptBase64 } : tx))
+      prev.map((tx) => (tx.id === txId ? { ...tx, receiptImage: receiptBase64 } : tx))
     );
   };
 
@@ -569,7 +570,7 @@ export function PaymentsClient({
               </div>
 
               <div className="space-y-2">
-                <Label>Receipt / Product Image (Camera Capture)</Label>
+                <Label>Product Image (Camera Capture)</Label>
 
                 {/* Camera Active View */}
                 {isCameraActive && (
@@ -610,7 +611,7 @@ export function PaymentsClient({
                   >
                     <Camera className="h-8 w-8 text-muted-foreground mb-2" />
                     <span className="text-[13px] font-medium text-foreground">
-                      Open Camera & Take Photo
+                      Open Camera & Take Product Photo
                     </span>
                     <span className="text-[11px] text-muted-foreground mt-1">
                       Webcam or mobile camera access required
@@ -623,12 +624,12 @@ export function PaymentsClient({
                   <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-surface/20 p-4 space-y-3">
                     <img
                       src={URL.createObjectURL(file)}
-                      alt="Captured receipt preview"
+                      alt="Captured product preview"
                       className="max-h-[200px] rounded-md object-contain border border-line shadow-sm"
                     />
                     <div className="flex items-center gap-3">
                       <span className="text-xs text-muted-foreground font-mono font-medium">
-                        receipt_capture.jpg (Captured)
+                        product_image.jpg (Captured)
                       </span>
                       <button
                         type="button"
@@ -698,10 +699,10 @@ export function PaymentsClient({
                       </TableCell>
                       <TableCell className="px-5 text-right">
                         {tx.status === "completed" ? (
-                          tx.imageName ? (
+                          tx.receiptImage ? (
                             <button
                               type="button"
-                              onClick={() => setViewTx({ base64: tx.imageName!, productName: tx.productName })}
+                              onClick={() => setViewTx({ base64: tx.receiptImage!, productName: tx.productName })}
                               className="inline-flex h-7 px-2.5 items-center gap-1 rounded-md bg-highlight-soft text-highlight text-xs font-semibold hover:bg-highlight/15 transition-all outline-none"
                             >
                               View Receipt
@@ -891,10 +892,10 @@ export function PaymentsClient({
                         {formatRWF(tx.price * tx.quantity)}
                       </TableCell>
                       <TableCell className="px-5 text-right">
-                        {tx.imageName ? (
+                        {tx.receiptImage ? (
                           <button
                             type="button"
-                            onClick={() => setViewTx({ base64: tx.imageName!, productName: tx.productName })}
+                            onClick={() => setViewTx({ base64: tx.receiptImage!, productName: tx.productName })}
                             className="inline-flex h-7 px-2.5 items-center gap-1 rounded-md bg-highlight-soft text-highlight text-xs font-semibold hover:bg-highlight/15 transition-all outline-none"
                           >
                             View Receipt

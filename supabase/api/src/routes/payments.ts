@@ -89,7 +89,7 @@ paymentsRouter.post("/request", verifyLimits, asyncHandler(async (req, res) => {
     recipient_phone: body.recipient_phone,
     amount: body.amount,
     status: "pending",
-    receipt_base64: body.receipt_base64 || null,
+    product_image_base64: body.receipt_base64 || null,
     location_id: body.location_id,
   }).select("id").single()
 
