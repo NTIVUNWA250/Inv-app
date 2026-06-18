@@ -134,6 +134,7 @@ export function PaymentsClient({
     price: "",
     locationId: "",
   });
+  const [isCustomProduct, setIsCustomProduct] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [statusMsg, setStatusMsg] = useState<{
     type: "success" | "error";
@@ -405,6 +406,7 @@ export function PaymentsClient({
           locationId: "",
         });
         setFile(null);
+        setIsCustomProduct(false);
         setStatusMsg({
           type: "success",
           text: "Payment request submitted successfully via MTN MoMo!",
@@ -486,24 +488,57 @@ export function PaymentsClient({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="productName">Product Name</Label>
-                  <select
-                    id="productName"
-                    name="productName"
-                    required
-                    value={form.productName}
-                    onChange={handleProductChange}
-                    className="flex h-10 w-full rounded-md border border-input bg-card/60 bg-opacity-70 dark:bg-card/40 px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-highlight disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <option value="" disabled className="bg-background">
-                      Select a registered product...
-                    </option>
-                    {items.map((item) => (
-                      <option key={item.id} value={item.name} className="bg-background text-foreground">
-                        {item.name} {item.sku ? `(${item.sku})` : ""}
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="productName">Product Name</Label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="checkbox"
+                        id="isCustomProduct"
+                        checked={isCustomProduct}
+                        onChange={(e) => {
+                          setIsCustomProduct(e.target.checked);
+                          setForm((prev) => ({
+                            ...prev,
+                            productName: "",
+                            description: "",
+                            locationId: e.target.checked && locations.length > 0 ? locations[0].id : prev.locationId,
+                          }));
+                        }}
+                        className="h-3.5 w-3.5 rounded border-input text-highlight focus:ring-highlight/25 cursor-pointer"
+                      />
+                      <label htmlFor="isCustomProduct" className="text-[11px] font-medium text-muted-foreground select-none cursor-pointer">
+                        Item not in catalog
+                      </label>
+                    </div>
+                  </div>
+                  {isCustomProduct ? (
+                    <Input
+                      id="productName"
+                      name="productName"
+                      required
+                      placeholder="Enter brand new product name..."
+                      value={form.productName}
+                      onChange={handleChange}
+                    />
+                  ) : (
+                    <select
+                      id="productName"
+                      name="productName"
+                      required
+                      value={form.productName}
+                      onChange={handleProductChange}
+                      className="flex h-10 w-full rounded-md border border-input bg-card/60 bg-opacity-70 dark:bg-card/40 px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-highlight disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="" disabled className="bg-background">
+                        Select a registered product...
                       </option>
-                    ))}
-                  </select>
+                      {items.map((item) => (
+                        <option key={item.id} value={item.name} className="bg-background text-foreground">
+                          {item.name} {item.sku ? `(${item.sku})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
 
